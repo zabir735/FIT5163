@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.hypothesis/
+*.egg-info/
+
+# Environments
+.venv/
+venv/
+
+# IDE (keep shared project files, drop per-user state)
+.idea/workspace.xml
+.idea/shelf/
+.vscode/
+
+# Generated evaluation output (regenerate with run_all.bat / run_all.sh)
+eval/plots/*.png
+eval/plots/*.csv
+eval/plots/quick/
+eval/results/

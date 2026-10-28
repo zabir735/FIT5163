@@ -1,0 +1,7 @@
+# Pinned versions. Record Python/OS/CPU in README when benchmarking.
+# Curve arithmetic: libsecp256k1 (Bitcoin Core's audited C library) via coincurve.
+coincurve==21.0.0
+pytest==9.1.1
+hypothesis==6.170.11
+# Evaluation plots (eval/size_model.py); pandas is not used.
+matplotlib==3.11.2
