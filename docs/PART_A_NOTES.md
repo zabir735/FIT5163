@@ -6,7 +6,7 @@
     pytest -q          # ~140 tests, a few seconds
     python demo.py
 
-Python 3.11+. Dependencies: pytest, coincurve 21.0.0 (libsecp256k1).
+Python 3.11-3.13 (coincurve 21 has no 3.14 build yet). Dependencies: pytest, coincurve 21.0.0 (libsecp256k1).
 
 ## Layout (what's done)
 

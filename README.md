@@ -49,6 +49,8 @@ scheme's algebra but reveals the witness, so never benchmark or demo privacy wit
 
 ## Setup
 
+Needs Python 3.11-3.13: `coincurve` 21.0.0 ships prebuilt wheels only up to 3.13, so `pip install` fails on 3.14.
+
 ```bash
 python -m venv .venv
 . .venv/bin/activate        # Windows: .venv\Scripts\activate
