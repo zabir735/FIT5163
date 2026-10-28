@@ -1,7 +1,7 @@
 @echo off
 rem Regenerates every test result, table and plot used in the report.
 rem
-rem   run_all.bat                 full run: 100 timing runs per ring size (slow, over an hour)
+rem   run_all.bat                 full run: 100 timing runs per ring size (a few minutes)
 rem   run_all.bat quick           smoke run: a few minutes, checks every step works
 rem   run_all.bat seed 42         any mode with another seed (default 5163)
 rem
@@ -69,6 +69,13 @@ call :run "measured transaction and proof sizes" ^
 call :run "Spend/Verify timing" ^
     %PY% -m eval.bench_time --seed %SEED% --ring-sizes %RINGS% --repetitions %TIME_REPS% ^
     --quiet --output %OUT%\bench_time_sigma_ring.csv || goto :fail
+
+rem Paper Table 3 only covers rings 128-1024, so the side-by-side comparison runs in full mode.
+if not "%MODE%"=="full" goto :after_compare
+set "BASE="
+if exist "%OUT%\bench_time_sigma_ring_n10.csv" set "BASE=--baseline-time %OUT%\bench_time_sigma_ring_n10.csv"
+call :run "comparison with the paper" %PY% -m eval.compare --results-dir %OUT% --plots-dir %PLOTS% %BASE% || goto :fail
+:after_compare
 
 call :attack miner_privacy --trials %TRIALS% || goto :fail
 call :attack anonymity_reduction --trials %TRIALS% || goto :fail

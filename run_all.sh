@@ -2,7 +2,7 @@
 # macOS/Linux twin of run_all.bat; keep the two in step.
 # Regenerates every test result, table and plot used in the report.
 #
-#   ./run_all.sh                full run: 100 timing runs per ring size (slow, over an hour)
+#   ./run_all.sh                full run: 100 timing runs per ring size (a few minutes)
 #   ./run_all.sh quick          smoke run: a few minutes, checks every step works
 #   ./run_all.sh seed 42        any mode with another seed (default 5163)
 #
@@ -60,6 +60,14 @@ rm -f "$OUT/bench_size_sigma_ring.csv"     # bench_size refuses to overwrite it
 step "Spend/Verify timing"
 "$PY" -m eval.bench_time --seed "$SEED" --ring-sizes $RINGS --repetitions "$TIME_REPS" \
     --quiet --output "$OUT/bench_time_sigma_ring.csv"
+
+# Paper Table 3 only covers rings 128-1024, so the side-by-side comparison runs in full mode.
+if [ "$MODE" = full ]; then
+    step "comparison with the paper"
+    BASE=()
+    [ -f "$OUT/bench_time_sigma_ring_n10.csv" ] && BASE=(--baseline-time "$OUT/bench_time_sigma_ring_n10.csv")
+    "$PY" -m eval.compare --results-dir "$OUT" --plots-dir "$PLOTS" "${BASE[@]}"
+fi
 
 attack miner_privacy --trials "$TRIALS"
 attack anonymity_reduction --trials "$TRIALS"

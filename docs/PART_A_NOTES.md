@@ -77,3 +77,10 @@ Range proofs on outputs are part of the relation (condition 4).
    S-1 rule (§3.2) refuses S coinbases on their own. A P2Pool miner must add an
    ordinary coin as well (`test_coinbases_alone_are_refused`). Same root cause
    as finding 2.
+8. **The S-1 rule keeps coinbases out of every single-input ring.** With S = 1 the
+   ring may hold no miner account at all, so coinbases can never be decoys in
+   one-input spends (most transactions: the paper cites 70-90% one-input in
+   Bitcoin, Appendix D). `attacks/chain_scenario.py` shows 0.00 coinbases per
+   ordinary ring. Coinbases then only ever appear in multi-input rings, which
+   shrinks the decoy pool for them. Not an attack in itself, but a cost of the
+   mitigation the paper doesn't discuss.

@@ -1,0 +1,15 @@
+Attack 2: anonymity reduction | trials=200 seed=5163 proof=stub
+Eve reads all outputs; a coinbase smaller than outputs + fee cannot be the sole spender.
+
+ring size n = 8   (19.0% of trials spend more than a block reward)
+  legacy    : effective anonymity set   7.43 of 8   | trials where Eve removed >= 1 decoy: 19.0%
+  mitigated : effective anonymity set   8.00 of 8   | honest tx valid: 100.0%   | coinbase-stuffed ring rejected by Verify: 100.0%
+
+ring size n = 16   (25.5% of trials spend more than a block reward)
+  legacy    : effective anonymity set  15.23 of 16   | trials where Eve removed >= 1 decoy: 25.5%
+  mitigated : effective anonymity set  16.00 of 16   | honest tx valid: 100.0%   | coinbase-stuffed ring rejected by Verify: 100.0%
+
+ring size n = 32   (22.0% of trials spend more than a block reward)
+  legacy    : effective anonymity set  31.34 of 32   | trials where Eve removed >= 1 decoy: 22.0%
+  mitigated : effective anonymity set  32.00 of 32   | honest tx valid: 100.0%   | coinbase-stuffed ring rejected by Verify: 100.0%
+

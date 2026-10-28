@@ -1,8 +1,9 @@
-"""Measure complete serialized Python transactions when the serializer is ready.
+"""Measure complete serialized Python transactions.
 
-The current succinct.serialize.encode_transaction raises NotImplementedError.
-No transaction size is reported until the serializer declares
-COMPLETE_TRANSACTION_ENCODING = True and a nonempty TRANSACTION_FORMAT, and
+succinct.serialize provides the full encoding (it declares
+COMPLETE_TRANSACTION_ENCODING = True), so sizes are measured. The checks
+below stay as a guard: no transaction size is reported unless the serializer
+declares COMPLETE_TRANSACTION_ENCODING = True and a nonempty TRANSACTION_FORMAT, and
 encode_transaction(tx, sig) returns nonempty bytes. That declaration must mean
 the encoding includes the transaction, signature R/T, and the complete nested
 sigma_ring, range, and inner-product proofs. A separate proof byte count is

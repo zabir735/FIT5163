@@ -1,0 +1,12 @@
+Related-key tag attack | trials=20
+Alice knows both shared secrets. 'links' = her check says the two tags share a recipient.
+
+  scheme                            alice check                              links same links diff
+  naive  sk = H(s) + lsk            Monero-style: delta = H(s1) - H(s2)            100%         0%
+  naive  sk = H(s) + lsk            plain linear: delta = s1 - s2                    0%         0%
+
+  SuccinCT  sk = f(s), q = 3        Monero-style: delta = H(s1) - H(s2)              0%         0%
+  SuccinCT  sk = f(s), q = 3        plain linear: delta = s1 - s2                    0%         0%
+
+links same = pair of tags from ONE recipient (Alice wants this to be 100%).
+links diff = pair from two DIFFERENT recipients (should be 0% or the test is useless).

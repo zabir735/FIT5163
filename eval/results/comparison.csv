@@ -1,0 +1,5 @@
+ring_size,paper_spend_ms,paper_spend_std_ms,paper_verify_ms,paper_verify_std_ms,ours_spend_ms,ours_spend_std_ms,ours_verify_ms,ours_verify_std_ms,spend_ratio_ours_over_paper,verify_ratio_ours_over_paper,ours_tx_bytes,ours_proof_bytes,paper_succinct_tx_bytes,paper_bulletct_tx_bytes,size_ratio_ours_over_paper,purepython_spend_ms,purepython_verify_ms
+128,2.00509,0.323716,1.24612,0.221242,114.968,24.009,38.992,7.597,57.3,31.3,9993,9148,1648,1968,6.1,3164.6,988.5
+256,2.18062,0.097861,1.39342,0.123428,181.667,44.18,69.725,16.454,83.3,50.0,18697,17340,2224,2480,8.4,4510.8,1634.2
+512,2.64914,0.128827,1.80817,0.206267,271.251,58.764,122.85,28.597,102.4,67.9,36105,33724,3312,3568,10.9,7023.7,2925.1
+1024,3.56213,0.158974,2.60732,0.169522,488.281,98.704,230.595,49.369,137.1,88.4,70921,66492,5424,5680,13.1,12092.0,5433.3

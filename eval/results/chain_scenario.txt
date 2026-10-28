@@ -1,0 +1,27 @@
+End-to-end on the real Chain | trials=200 seed=5163 proof=stub
+Every transaction goes through Chain.submit, so Verify's rules are enforced by the chain.
+
+ring size n = 8   (chain now holds 2432 outputs)
+  legacy attempt (coinbase spent alone): wallet refuses to build 100.0%, hand-made copy rejected by chain (⊥) 100.0%
+  self-transfer + S-1 rule   accepted by chain: 100%   Eve success  26.5%   certain   0.0%   chance 25.0%
+  careless self-transfer     accepted by chain: 100%   Eve success 100.0%   certain 100.0%   chance 25.0%
+  attack 2 on chain: coinbases in rings of ordinary spends: 0.00 on average
+
+ring size n = 16   (chain now holds 2440 outputs)
+  legacy attempt (coinbase spent alone): wallet refuses to build 100.0%, hand-made copy rejected by chain (⊥) 100.0%
+  self-transfer + S-1 rule   accepted by chain: 100%   Eve success  11.5%   certain   0.0%   chance 12.5%
+  careless self-transfer     accepted by chain: 100%   Eve success 100.0%   certain 100.0%   chance 12.5%
+  attack 2 on chain: coinbases in rings of ordinary spends: 0.00 on average
+
+ring size n = 32   (chain now holds 2456 outputs)
+  legacy attempt (coinbase spent alone): wallet refuses to build 100.0%, hand-made copy rejected by chain (⊥) 100.0%
+  self-transfer + S-1 rule   accepted by chain: 100%   Eve success   5.5%   certain   0.0%   chance 6.2%
+  careless self-transfer     accepted by chain: 100%   Eve success 100.0%   certain 100.0%   chance 6.2%
+  attack 2 on chain: coinbases in rings of ordinary spends: 0.00 on average
+
+ring size n = 64   (chain now holds 2488 outputs)
+  legacy attempt (coinbase spent alone): wallet refuses to build 100.0%, hand-made copy rejected by chain (⊥) 100.0%
+  self-transfer + S-1 rule   accepted by chain: 100%   Eve success   2.5%   certain   0.0%   chance 3.1%
+  careless self-transfer     accepted by chain: 100%   Eve success 100.0%   certain 100.0%   chance 3.1%
+  attack 2 on chain: coinbases in rings of ordinary spends: 0.00 on average
+

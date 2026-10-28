@@ -1,0 +1,30 @@
+q-bound linkability | trials=10 (keys use OS randomness; --seed unused)
+Alice made every output, so she knows each s_i. 'predicted' = she computed the next tag.
+
+q = 1   (key supports 1 uses; wallet refused use #2 in 100% of trials)
+   tags seen =  1   next tag predicted:    0%
+   tags seen =  2   next tag predicted:  100%  <- first point where it works (q+1 tags)
+   control: other recipient's tag predicted: 0%
+
+q = 2   (key supports 2 uses; wallet refused use #3 in 100% of trials)
+   tags seen =  1   next tag predicted:    0%
+   tags seen =  2   next tag predicted:    0%
+   tags seen =  3   next tag predicted:  100%  <- first point where it works (q+1 tags)
+   control: other recipient's tag predicted: 0%
+
+q = 3   (key supports 3 uses; wallet refused use #4 in 100% of trials)
+   tags seen =  1   next tag predicted:    0%
+   tags seen =  2   next tag predicted:    0%
+   tags seen =  3   next tag predicted:    0%
+   tags seen =  4   next tag predicted:  100%  <- first point where it works (q+1 tags)
+   control: other recipient's tag predicted: 0%
+
+q = 5   (key supports 5 uses; wallet refused use #6 in 100% of trials)
+   tags seen =  1   next tag predicted:    0%
+   tags seen =  2   next tag predicted:    0%
+   tags seen =  3   next tag predicted:    0%
+   tags seen =  4   next tag predicted:    0%
+   tags seen =  5   next tag predicted:    0%
+   tags seen =  6   next tag predicted:  100%  <- first point where it works (q+1 tags)
+   control: other recipient's tag predicted: 0%
+
