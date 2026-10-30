@@ -28,6 +28,7 @@ import time
 from attacks._common import Eve
 from succinct import ct, serialize
 from succinct.chain import Chain
+from succinct.group import G, random_scalar
 from succinct.keyagreement import ka_key
 from succinct.pedersen import commit
 from succinct.ct import SpendInput, spend, make_outputs, pick_ring
@@ -119,14 +120,22 @@ def build(chain, owners_refs, payments, fee):
     return tx, sig, positions
 
 
-def show_ring(eve, tx, need):
-    """The ring as Eve sees it: ordinary amounts hidden, coinbase amounts public."""
+def show_ring(eve, tx, need, test="match"):
+    """The ring as Eve sees it: ordinary amounts hidden, coinbase amounts public.
+
+    test="match": attack 1, a coinbase equal to outputs + fee gives the miner away.
+    test="cover": attack 2, a coinbase smaller than outputs + fee is ruled out.
+    """
     print(f"   {'ring member':<13}{'type':<11}amount, as Eve sees it")
     for ref in tx.ring_refs:
         if eve.is_miner(ref):
             amount = eve.amount(ref)
-            verdict = (paint(f"<- equals {need:,}: match!", "red", "bold") if amount == need
-                       else paint(f"<- not {need:,}: no match", "green"))
+            if test == "cover":
+                verdict = (paint(f"<- less than {need:,}: ruled out", "red", "bold")
+                           if amount < need else paint(f"<- could have paid {need:,}", "green"))
+            else:
+                verdict = (paint(f"<- equals {need:,}: match!", "red", "bold") if amount == need
+                           else paint(f"<- not {need:,}: no match", "green"))
             print(f"   #{ref:<12}{paint('COINBASE'.ljust(11), 'yellow', 'bold')}"
                   f"{paint(f'{amount:,} public'.ljust(18), 'yellow')}{verdict}")
         else:
@@ -303,6 +312,36 @@ def main():
         f" ({'correct' if guess == real else 'wrong'}): the miner's block is linked to bob")
     print(f"   the fix: the self-transfer must change the visible amount, as in the first spend")
 
+    step("Anonymity-reduction attack (paper section 3.2): Eve holds carol's view key")
+    alice = Wallet("alice")
+    _, acc, info = otaccgen(alice.mpk, 700_000, 1)
+    alice_coin = chain.add_output(acc, info)
+    tx_a, sig_a, (pos_a,) = build(chain, [(alice, alice_coin)],
+                                  [(carol.mpk, 650_000), (alice.mpk, 49_950)], fee)
+    eve2 = Eve(chain, [carol.vk])
+    known, _ = eve2.known_outputs(tx_a)
+    need = known + tx_a.fee
+    print(f"   alice spends ONE coin: {known:,} to carol (Eve can read it) + fee {tx_a.fee},"
+          f" so the real coin held at least {need:,}")
+    # The same transaction as it would look without the S-1 rule: one decoy
+    # swapped for the 600,000 coinbase from the first block.
+    slot = next(i for i in range(len(tx_a.ring_refs)) if i != pos_a)
+    legacy_refs = list(tx_a.ring_refs)
+    legacy_refs[slot] = cb
+    legacy_tx = dataclasses.replace(tx_a, ring_refs=tuple(legacy_refs))
+    print("   without the S-1 rule, a coinbase could sit in her ring as a decoy:")
+    if Style.ring:
+        show_ring(eve2, legacy_tx, need, test="cover")
+    else:
+        print(f"   coinbase in the ring: #{cb} = {paint(f'{eve2.amount(cb):,}', 'yellow')}")
+    no(f"unprotected: #{cb} holds only {eve2.amount(cb):,}, less than {need:,}, so Eve crosses it off:"
+       f" anonymity set {len(eve2.remaining(legacy_tx))} of {len(legacy_refs)}")
+    ok(f"with the rule: alice's real ring holds no coinbase, so Eve rules out no one:"
+       f" {len(eve2.remaining(tx_a))} of {len(tx_a.ring_refs)}")
+    no(f"and that coinbase-stuffed ring is rejected: verify -> {verify(legacy_tx, sig_a, chain)}")
+    explain("one input must cover outputs + fee on its own, so a too-small public coinbase can't be it;",
+            "with S = 1 the S-1 rule allows no coinbase at all, and Verify returns None if one is there")
+
     step("Double spend: submit the same transaction again")
     print(f"   verify -> {verify(tx, sig, chain)}  (None = rule broken: tag already on chain)")
     try:
@@ -312,15 +351,20 @@ def main():
     explain("Verify: the same coins give the same tags, already on the spent list,",
             "so a rule is broken and it returns None (the paper's bottom) before checking the proof")
 
-    step("Tampering: bob builds a tx, someone edits the fee in transit")
+    step("Tampering: bob builds a tx, someone edits it in transit")
     tx2, sig2, _ = build(chain, [(bob, new_refs[0])],
                          [(carol.mpk, 300_000), (bob.mpk, 199_990)], 10)
     edited = dataclasses.replace(tx2, fee=0)
     (no if verify(edited, sig2, chain) is False else ok)(
         f"edited fee: verify -> {verify(edited, sig2, chain)}")
+    swapped = dataclasses.replace(tx2, info=random_scalar() * G)
+    (no if verify(swapped, sig2, chain) is False else ok)(
+        f"swapped tek: verify -> {verify(swapped, sig2, chain)}"
+        "   (our fix: the paper's 6.2 leaves the tek unsigned)")
     ok(f"original: verify -> {verify(tx2, sig2, chain)}")
-    explain("the fee is part of the signed transaction prefix, so editing it changes h,",
-            "z no longer satisfies Eq. 5, and the proof fails (False, not None)")
+    explain("the fee and the tek are part of the signed transaction prefix, so editing either changes h,",
+            "z no longer satisfies Eq. 5, and the proof fails (False, not None)",
+            "without the fix, a swapped tek would still verify, but carol could never find her coin")
 
     step("Inflation: bob tries to send more than he has")
     try:
