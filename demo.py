@@ -3,6 +3,12 @@ End-to-end demo of SuccinCT on the toy chain.
 
     python demo.py            # real proof (Σ-protocol + Bulletproofs range proof)
     python demo.py --stub     # placeholder proof: fast, but reveals the witness
+    python demo.py --present  # for the live talk: --step --color --ring together
+
+Presentation options (all off by default, so plain output stays as it was):
+    --step    wait for Enter before each step
+    --color   green [ok], red [nope], yellow public coinbase amounts
+    --ring    print each attacked ring the way Eve sees it
 
 Walks through: keygen -> mine -> spend coinbase with self-transfer -> verify
 -> receive -> miner-privacy attack (fails against the self-transfer, succeeds
@@ -13,6 +19,7 @@ full experiments with success rates are in attacks/.
 
 import argparse
 import dataclasses
+import os
 import random
 import time
 
@@ -26,16 +33,40 @@ from succinct.stealth import sakgen, sakgen_miner, otaccgen, receive, view
 RING_SIZE = 8
 
 
+class Style:
+    """Presentation switches, set once from the command line."""
+    pause = False
+    color = False
+    ring = False
+    steps_shown = 0
+
+
+ANSI = {"green": "32", "red": "31", "yellow": "33", "bold": "1", "dim": "2", "cyan": "36"}
+
+
+def paint(text, *names):
+    if not Style.color:
+        return text
+    codes = ";".join(ANSI[n] for n in names)
+    return f"\033[{codes}m{text}\033[0m"
+
+
 def step(title):
-    print(f"\n== {title}")
+    if Style.pause and Style.steps_shown:
+        try:
+            input(paint("\n   -- press Enter for the next step --", "dim"))
+        except EOFError:                      # no keyboard (piped or recorded run)
+            pass
+    Style.steps_shown += 1
+    print(paint(f"\n== {title}", "bold", "cyan"))
 
 
 def ok(msg):
-    print(f"   [ok]   {msg}")
+    print(f"   {paint('[ok]  ', 'green', 'bold')} {msg}")
 
 
 def no(msg):
-    print(f"   [nope] {msg}")
+    print(f"   {paint('[nope]', 'red', 'bold')} {msg}")
 
 
 class Wallet:
@@ -70,6 +101,20 @@ def build(chain, owners_refs, payments, fee):
     return tx, sig, positions
 
 
+def show_ring(eve, tx, need):
+    """The ring as Eve sees it: ordinary amounts hidden, coinbase amounts public."""
+    print(f"   {'ring member':<13}{'type':<11}amount, as Eve sees it")
+    for ref in tx.ring_refs:
+        if eve.is_miner(ref):
+            amount = eve.amount(ref)
+            verdict = (paint(f"<- equals {need:,}: match!", "red", "bold") if amount == need
+                       else paint(f"<- not {need:,}: no match", "green"))
+            print(f"   #{ref:<12}{paint('COINBASE'.ljust(11), 'yellow', 'bold')}"
+                  f"{paint(f'{amount:,} public'.ljust(18), 'yellow')}{verdict}")
+        else:
+            print(f"   #{ref:<12}{'ordinary':<11}{paint('hidden', 'dim')}")
+
+
 def explain_attack(eve, tx):
     """Print Eve's section 3.1 arithmetic for one transaction."""
     known, hidden = eve.known_outputs(tx)
@@ -77,15 +122,31 @@ def explain_attack(eve, tx):
     coinbases = [(r, eve.amount(r)) for r in tx.ring_refs if eve.is_miner(r)]
     print(f"   Eve reads {known:,} sent to bob ({hidden} output(s) she can't open), fee {tx.fee}:"
           f" looks for a coinbase worth {need:,}")
-    print("   coinbases in the ring: "
-          + (", ".join(f"#{r} = {a:,}" for r, a in coinbases) or "none"))
+    if Style.ring:
+        show_ring(eve, tx, need)
+    else:
+        print("   coinbases in the ring: "
+              + (", ".join(f"#{r} = {paint(f'{a:,}', 'yellow')}" for r, a in coinbases)
+                 or "none"))
 
 
 def main():
     parser = argparse.ArgumentParser(description="SuccinCT end-to-end demo")
     parser.add_argument("--stub", action="store_true",
                         help="use the placeholder proof (fast, NOT private)")
-    nizk = stub if parser.parse_args().stub else sigma_ring
+    parser.add_argument("--step", action="store_true", help="wait for Enter before each step")
+    parser.add_argument("--color", action="store_true", help="colour the output")
+    parser.add_argument("--ring", action="store_true",
+                        help="show each attacked ring the way Eve sees it")
+    parser.add_argument("--present", action="store_true",
+                        help="presentation mode: --step --color --ring")
+    args = parser.parse_args()
+    Style.pause = args.step or args.present
+    Style.color = args.color or args.present
+    Style.ring = args.ring or args.present
+    if Style.color and os.name == "nt":
+        os.system("")                         # turns on ANSI colours in the Windows console
+    nizk = stub if args.stub else sigma_ring
     chain = Chain(nizk=nizk)
 
     step("Setup")
@@ -104,7 +165,8 @@ def main():
     miner_key = Wallet("miner (coinbase key)", miner=True)   # fresh key per block
     cb = chain.mine_block(miner_key.mpk)
     cb_acc, _ = chain.get(cb)
-    print(f"   coinbase output #{cb}, amount {cb_acc.ctxt:,} (public, coin key 1)")
+    print(f"   coinbase output #{cb}, amount {paint(f'{cb_acc.ctxt:,}', 'yellow')}"
+          f" (public, coin key 1)")
 
     step("Spend the coinbase on its own")
     try:
@@ -153,7 +215,8 @@ def main():
     miner_key2 = Wallet("miner (coinbase key 2)", miner=True)
     cb2 = chain.mine_block(miner_key2.mpk)
     cb2_amount = chain.get(cb2)[0].ctxt
-    print(f"   coinbase #{cb2}: {cb2_amount:,} = reward {chain.reward:,} + fee {fee}")
+    print(f"   coinbase #{cb2}: {paint(f'{cb2_amount:,}', 'yellow')}"
+          f" = reward {chain.reward:,} + fee {fee}")
 
     step("Same attack, careless self-transfer: bob gets exactly coinbase - fee")
     _, acc, info = otaccgen(miner_wallet.mpk, 1_000, 1)
@@ -200,7 +263,7 @@ def main():
     finally:
         ct._check_balance = original
 
-    print("\nDone.")
+    print(paint("\nDone.", "bold"))
 
 
 if __name__ == "__main__":
