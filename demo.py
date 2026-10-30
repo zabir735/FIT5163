@@ -9,6 +9,8 @@ Presentation options (all off by default, so plain output stays as it was):
     --step    wait for Enter before each step
     --color   green [ok], red [nope], yellow public coinbase amounts
     --ring    print each attacked ring the way Eve sees it
+    --explain under each step, the paper algorithm and function that ran and the
+              values it produced (challenges, tags, proof size, Verify's checks)
 
 Walks through: keygen -> mine -> spend coinbase with self-transfer -> verify
 -> receive -> miner-privacy attack (fails against the self-transfer, succeeds
@@ -24,8 +26,10 @@ import random
 import time
 
 from attacks._common import Eve
-from succinct import ct
+from succinct import ct, serialize
 from succinct.chain import Chain
+from succinct.keyagreement import ka_key
+from succinct.pedersen import commit
 from succinct.ct import SpendInput, spend, make_outputs, pick_ring
 from succinct.nizk import sigma_ring, stub
 from succinct.stealth import sakgen, sakgen_miner, otaccgen, receive, view
@@ -38,6 +42,7 @@ class Style:
     pause = False
     color = False
     ring = False
+    explain = False
     steps_shown = 0
 
 
@@ -59,6 +64,19 @@ def step(title):
             pass
     Style.steps_shown += 1
     print(paint(f"\n== {title}", "bold", "cyan"))
+
+
+def explain(*lines):
+    """Extra detail under a step, only with --explain."""
+    if Style.explain:
+        for line in lines:
+            print(paint(f"   · {line}", "dim"))
+
+
+def short(x):
+    """First 12 hex digits of a scalar or point, enough to show it's a real value."""
+    raw = f"{x:064x}" if isinstance(x, int) else x.to_bytes().hex()
+    return raw[:12] + "..."
 
 
 def ok(msg):
@@ -140,10 +158,13 @@ def main():
                         help="show each attacked ring the way Eve sees it")
     parser.add_argument("--present", action="store_true",
                         help="presentation mode: --step --color --ring")
+    parser.add_argument("--explain", action="store_true",
+                        help="show which algorithm ran at each step and the values it produced")
     args = parser.parse_args()
     Style.pause = args.step or args.present
     Style.color = args.color or args.present
     Style.ring = args.ring or args.present
+    Style.explain = args.explain
     if Style.color and os.name == "nt":
         os.system("")                         # turns on ANSI colours in the Windows console
     nizk = stub if args.stub else sigma_ring
@@ -160,6 +181,9 @@ def main():
     _, acc, info = otaccgen(miner_wallet.mpk, 1_000, 1)
     savings = chain.add_output(acc, info)
     print(f"   chain has {len(chain)} outputs; the miner also owns an ordinary coin of 1,000")
+    explain(f"SAKGen (stealth.sakgen): bob gets a secret polynomial f of degree q = {bob.msk.q}",
+            f"his address: {len(bob.mpk.lpk)} public points F_i = theta_i*G, plus a view key vdk*G'",
+            "the 40 decoys are other people's coins, each made with OTAccGen (stealth.otaccgen)")
 
     step("Mine a block")
     miner_key = Wallet("miner (coinbase key)", miner=True)   # fresh key per block
@@ -167,12 +191,17 @@ def main():
     cb_acc, _ = chain.get(cb)
     print(f"   coinbase output #{cb}, amount {paint(f'{cb_acc.ctxt:,}', 'yellow')}"
           f" (public, coin key 1)")
+    explain("Mine (ct.mine, via chain.mine_block): coinbase = block reward + pending fees",
+            "kappa = 0, coin key 1, amount stored in the clear, so anyone can check it:",
+            f"  co == amount*V + 1*W ?  {commit(cb_acc.ctxt, 1) == cb_acc.co}")
 
     step("Spend the coinbase on its own")
     try:
         pick_ring(chain, [cb], RING_SIZE)
     except ValueError as e:
         no(f"refused: {e}")
+    explain("pick_ring: S = 1 input, so the ring may hold at most S-1 = 0 coinbases",
+            "Verify (ct.verify) enforces the same rule: a hand-built ring would return None")
 
     step("Spend coinbase + ordinary coin, with a self-transfer")
     total = cb_acc.ctxt + 1_000
@@ -185,19 +214,56 @@ def main():
     t1 = time.perf_counter()
     print(f"   ring: {list(tx.ring_refs)}   (real inputs at positions {positions}, not in the tx)")
     print(f"   outputs: {to_bob:,} to bob, {change:,} back to the miner's normal wallet, fee {fee}")
+    if Style.explain:
+        ring_accs = [chain.get(r)[0] for r in tx.ring_refs]
+        stmt = ct.build_statement(tx.ring_refs, ring_accs, tx.tags, tx.outputs, tx.info,
+                                  tx.fee, tx.mu, sig.R, sig.T)
+        S = len(tx.tags)
+        cbs = sum(a.is_miner for a in ring_accs)
+        explain(f"OTAccGen x{len(tx.outputs)} (ct.make_outputs): one shared tek; each output gets",
+                "  a one-time key pk = prod F_i^(s^i), a commitment co = a*V + ck*W, an encrypted amount",
+                f"pick_ring: S = {S} real inputs hidden in one ring of n = {len(tx.ring_refs)};"
+                f" coinbases in it: {cbs} <= S-1 = {S - 1}",
+                "Spend (ct.spend):",
+                f"  alpha_1 = {short(stmt.alphas[0])}  alpha_2 = {short(stmt.alphas[1])}"
+                "  MuSig weight per input",
+                f"  beta    = {short(stmt.beta)}  ties key and tag: R = r*(G + beta*U)",
+                f"  h       = {short(stmt.h)}  Schnorr challenge over the whole transaction",
+                "  z = r + h * sum(alpha_j * sk_j)  one response for both inputs",
+                f"  gamma   = {short(stmt.gamma)}  folds the balance check into Eq. 5",
+                f"  tags (key images, sk*U): {', '.join(short(t) for t in tx.tags)}")
+        if nizk is sigma_ring:
+            explain(f"  proof {serialize.proof_size(sig.proof):,} bytes;"
+                    f" whole transaction {serialize.transaction_size(tx, sig):,} bytes")
     result = verify(tx, sig, chain)
     t2 = time.perf_counter()
     (ok if result else no)(f"verify -> {result}   (spend {1000*(t1-t0):.0f} ms, verify {1000*(t2-t1):.0f} ms)")
+    if Style.explain:
+        checks = [
+            (f"{len(tx.outputs)} outputs, between 2 and 16", "yes"),
+            ("tags not already on chain",
+             "no" if any(chain.is_spent(t) for t in tx.tags) else "yes"),
+            ("ring references exist, no duplicates", "yes"),
+            (f"coinbases in ring {cbs} <= S-1 = {S - 1}", "yes"),
+            ("proof: Eq. 5, one-hot b, T, ranges", str(result)),
+        ]
+        explain("Verify (ct.verify) checks, in order:",
+                *(f"  {label + ' ':.<40} {value}" for label, value in checks))
     if nizk is sigma_ring:
         f = sig.proof.f
         print(f"   proof: {len(f)} x {len(f[0])} masked responses f, all uniformly random,"
               f" so they look the same whichever position is real")
     new_refs = chain.submit(tx, sig)
+    explain("chain.submit: the two tags join the spent list; the two new outputs join the chain")
 
     step("Bob receives")
     got = bob.open(chain, new_refs[0])
     ok(f"bob finds output #{new_refs[0]} worth {got[1]:,}")
     acc, info = chain.get(new_refs[0])
+    explain(f"Receive (stealth.receive): s = H_n(vdk * tek, kappa) = {short(ka_key(bob.msk.vdk, info, acc.kappa))}",
+            "  recompute pk = prod F_i^(s^i): it matches this output, so it is bob's",
+            "  decrypt the amount and check co = a*V + ck*W; then sk = f(s), tag = sk*U",
+            f"  address used {len(bob.msk.received)} of q = {bob.msk.q} times")
     print(f"   anyone with bob's view key sees {view(bob.vk, acc, info):,} as well")
     print(f"   {to_bob:,} + fee {fee} = {to_bob + fee:,}, which matches no coinbase in the ring:")
     print(f"   the self-transfer output is hidden, so the coinbase can't be singled out")
@@ -217,6 +283,7 @@ def main():
     cb2_amount = chain.get(cb2)[0].ctxt
     print(f"   coinbase #{cb2}: {paint(f'{cb2_amount:,}', 'yellow')}"
           f" = reward {chain.reward:,} + fee {fee}")
+    explain("the fee is not an output: Mine adds the pending fees to the next coinbase")
 
     step("Same attack, careless self-transfer: bob gets exactly coinbase - fee")
     _, acc, info = otaccgen(miner_wallet.mpk, 1_000, 1)
@@ -226,6 +293,8 @@ def main():
         [(bob.mpk, cb2_amount - fee), (miner_wallet.mpk, 1_000)], fee)
     chain.submit(careless_tx, careless_sig)
     print(f"   accepted by the chain: the rules and the proof can't tell a careless amount apart")
+    explain("Verify can't see which output is change, so self-transfer is the spender's job:",
+            "the paper's privacy model assumes honest miners call Spend this way")
     explain_attack(eve, careless_tx)
     guess, how = eve.guess_spender(careless_tx, random.Random(5163))
     real = careless_tx.ring_refs[positions[0]]
@@ -240,6 +309,8 @@ def main():
         chain.submit(tx, sig)
     except ValueError as e:
         no(str(e))
+    explain("Verify: the same coins give the same tags, already on the spent list,",
+            "so a rule is broken and it returns None (the paper's bottom) before checking the proof")
 
     step("Tampering: bob builds a tx, someone edits the fee in transit")
     tx2, sig2, _ = build(chain, [(bob, new_refs[0])],
@@ -248,6 +319,8 @@ def main():
     (no if verify(edited, sig2, chain) is False else ok)(
         f"edited fee: verify -> {verify(edited, sig2, chain)}")
     ok(f"original: verify -> {verify(tx2, sig2, chain)}")
+    explain("the fee is part of the signed transaction prefix, so editing it changes h,",
+            "z no longer satisfies Eq. 5, and the proof fails (False, not None)")
 
     step("Inflation: bob tries to send more than he has")
     try:
@@ -262,6 +335,8 @@ def main():
         no(f"patched wallet signs it anyway, but verify -> {verify(tx3, sig3, chain)}")
     finally:
         ct._check_balance = original
+    explain("balance is checked inside Eq. 5 (the gamma part) and the range proof,",
+            "so Verify catches it even when the wallet's own check is switched off")
 
     print(paint("\nDone.", "bold"))
 
