@@ -1,0 +1,10 @@
+[project]
+name = "succinct"
+version = "0.1.0"
+description = "FIT5163 implementation of SuccinCT: Succinct Confidential Transaction for Miner Privacy (Chen et al.)"
+requires-python = ">=3.11,<3.14"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra"
