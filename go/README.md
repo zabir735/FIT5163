@@ -87,7 +87,10 @@ build: Python has neither BN254 nor the BP++ proof.
 All runs: one core, 100 spend/verify pairs per ring size, 2 inputs and 2
 outputs, the same Linux container (not the paper's Apple M1). Times are
 means in ms; sizes are the full transaction / the proof alone, in bytes.
-Raw output and CSVs are in `results/`.
+Raw output and CSVs are in `results/`. `python go/plot_go.py` (from the
+repository root) draws the three comparison charts in `results/plots/`:
+transaction size, Spend and Verify against ring size, every version plus the
+paper.
 
 **Ring 128**
 
