@@ -27,4 +27,3 @@ q = 5   (key supports 5 uses; wallet refused use #6 in 100% of trials)
    tags seen =  5   next tag predicted:    0%
    tags seen =  6   next tag predicted:  100%  <- first point where it works (q+1 tags)
    control: other recipient's tag predicted: 0%
-

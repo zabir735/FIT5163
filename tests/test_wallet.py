@@ -124,3 +124,19 @@ def test_self_transfer_refuses_zero_change(chain):
     with pytest.raises(ValueError, match="non-zero"):
         self_transfer(chain, cb, ordinary_coin(chain, savings, 100),
                       bob[0], REWARD + 100 - 5, me[0], fee=5)
+
+
+def test_wallet_builds_with_the_chains_proof_system():
+    """A chain set up with the stub must accept wallet transactions (wallet uses chain.nizk)."""
+    from succinct.nizk import stub
+
+    c = Chain(nizk=stub, reward=REWARD)
+    for _ in range(30):
+        mpk, _, _ = sakgen(1)
+        _, acc, info = otaccgen(mpk, 1000, 1)
+        c.add_output(acc, info)
+    savings = sakgen(5)
+    coinbases = mine_coinbases(c, 2)
+    selves = [sakgen(1)[0], sakgen(1)[0]]
+    tx, sig, _ = multi_self_transfer(c, coinbases, ordinary_coin(c, savings, 100), selves, fee=3)
+    assert verify(tx, sig, c, nizk=stub) is True

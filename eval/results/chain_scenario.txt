@@ -24,4 +24,3 @@ ring size n = 64   (chain now holds 2488 outputs)
   self-transfer + S-1 rule   accepted by chain: 100%   Eve success   2.5%   certain   0.0%   chance 3.1%
   careless self-transfer     accepted by chain: 100%   Eve success 100.0%   certain 100.0%   chance 3.1%
   attack 2 on chain: coinbases in rings of ordinary spends: 0.00 on average
-

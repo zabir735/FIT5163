@@ -1,0 +1,5 @@
+ring_size,successful_repetitions,spend_mean_ms,spend_sample_std_ms,verify_mean_ms,verify_sample_std_ms,proof_backend,measurement_source
+128,100,48.75947126,11.800615992485262,16.32722873,0.18061108092262074,sigma_ring,Measured Python sigma_ring implementation; not original paper Go timings
+256,100,70.09268254,11.82498216196091,27.30473035,0.3797156248948417,sigma_ring,Measured Python sigma_ring implementation; not original paper Go timings
+512,100,114.25603375,25.142195585561165,49.54131832,1.0886715497517174,sigma_ring,Measured Python sigma_ring implementation; not original paper Go timings
+1024,100,203.14242251,47.98787816549664,94.70184466,3.4666467233053155,sigma_ring,Measured Python sigma_ring implementation; not original paper Go timings

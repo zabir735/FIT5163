@@ -5,7 +5,8 @@ rem   run_all.bat                 full run: 100 timing runs per ring size (a few
 rem   run_all.bat quick           smoke run: a few minutes, checks every step works
 rem   run_all.bat seed 42         any mode with another seed (default 5163)
 rem
-rem Results go to eval\results (CSV and the attack tables as .txt) and eval\plots (PNG, CSV);
+rem Results go to eval\results (CSV and the attack tables as .txt) and eval\plots (PNG, CSV;
+rem benchmark plots in eval\plots\benchmarks);
 rem quick mode writes to a quick\ subfolder of each instead.
 rem Uses .venv\Scripts\python.exe when it exists, otherwise python on PATH.
 setlocal enableextensions
@@ -39,16 +40,16 @@ if not exist "%PLOTS%" mkdir "%PLOTS%"
 
 if "%MODE%"=="quick" (
     set "RINGS=8 16"
-    set "TIME_REPS=2"
-    set "SIZE_REPS=1"
+    set "TIME_REPS=10"
+    rem plot_results only accepts size CSVs with ten measurements per ring.
+    set "SIZE_REPS=10"
     set "TRIALS=10"
     set "CHAIN_RINGS=8 16"
     set "PYTEST_ARGS=-q tests/test_skeleton.py tests/test_serialize.py tests/test_size_model.py"
 ) else (
     set "RINGS=128 256 512 1024"
     set "TIME_REPS=100"
-    rem Encoded sizes are fixed for a given shape, so a few runs are enough.
-    set "SIZE_REPS=3"
+    set "SIZE_REPS=10"
     set "TRIALS=200"
     set "CHAIN_RINGS=8 16 32 64"
     set "PYTEST_ARGS=-q"
@@ -70,6 +71,12 @@ call :run "Spend/Verify timing" ^
     %PY% -m eval.bench_time --seed %SEED% --ring-sizes %RINGS% --repetitions %TIME_REPS% ^
     --quiet --output %OUT%\bench_time_sigma_ring.csv || goto :fail
 
+rem plot_results refuses to overwrite its outputs, so clear the previous run first.
+if exist "%PLOTS%\benchmarks" rmdir /s /q "%PLOTS%\benchmarks"
+call :run "benchmark plots" ^
+    %PY% -m eval.plot_results --input %OUT%\bench_time_sigma_ring.csv ^
+    --size-input %OUT%\bench_size_sigma_ring.csv --output-dir %PLOTS%\benchmarks || goto :fail
+
 rem Paper Table 3 only covers rings 128-1024, so the side-by-side comparison runs in full mode.
 if not "%MODE%"=="full" goto :after_compare
 set "BASE="
@@ -82,6 +89,7 @@ call :attack anonymity_reduction --trials %TRIALS% || goto :fail
 call :attack related_key_tag || goto :fail
 call :attack q_bound_linkability || goto :fail
 call :attack chain_scenario --trials %TRIALS% --ring-sizes %CHAIN_RINGS% || goto :fail
+call :attack multi_self_transfer --trials %TRIALS% --ring-sizes %CHAIN_RINGS% || goto :fail
 
 echo.
 echo All steps finished. Results are in %OUT% and %PLOTS%.

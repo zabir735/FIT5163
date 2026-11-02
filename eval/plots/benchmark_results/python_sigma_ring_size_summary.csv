@@ -1,0 +1,5 @@
+ring_size,successful_repetitions,input_count,output_count,transaction_bytes_mean,proof_bytes_mean,proof_backend,serialization_format,measurement_source
+128,10,2,2,9993.0,9148.0,sigma_ring,"succinct-v1 (33-byte points, 32-byte scalars, u16 counts)","Measured Python sigma_ring, succinct-v1 serialized bytes"
+256,10,2,2,18697.0,17340.0,sigma_ring,"succinct-v1 (33-byte points, 32-byte scalars, u16 counts)","Measured Python sigma_ring, succinct-v1 serialized bytes"
+512,10,2,2,36105.0,33724.0,sigma_ring,"succinct-v1 (33-byte points, 32-byte scalars, u16 counts)","Measured Python sigma_ring, succinct-v1 serialized bytes"
+1024,10,2,2,70921.0,66492.0,sigma_ring,"succinct-v1 (33-byte points, 32-byte scalars, u16 counts)","Measured Python sigma_ring, succinct-v1 serialized bytes"

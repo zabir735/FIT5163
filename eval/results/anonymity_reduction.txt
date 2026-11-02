@@ -12,4 +12,3 @@ ring size n = 16   (25.5% of trials spend more than a block reward)
 ring size n = 32   (22.0% of trials spend more than a block reward)
   legacy    : effective anonymity set  31.34 of 32   | trials where Eve removed >= 1 decoy: 22.0%
   mitigated : effective anonymity set  32.00 of 32   | honest tx valid: 100.0%   | coinbase-stuffed ring rejected by Verify: 100.0%
-

@@ -55,7 +55,11 @@ def _build(chain, owned, payments, fee, ring_size):
     ring, positions = pick_ring(chain, refs, ring_size)     # enforces S-1
     inputs = _open_inputs(chain, owned, positions)
     outputs, info = make_outputs(payments)
-    return spend([(r, chain.get(r)[0]) for r in ring], inputs, outputs, info, fee)
+    # Use the proof system the chain verifies with, as demo.py does. Without this a wallet
+    # would always build sigma_ring proofs, and a chain set up with another proof system
+    # (e.g. the fast stub for tests) would reject them.
+    return spend([(r, chain.get(r)[0]) for r in ring], inputs, outputs, info, fee,
+                 nizk=chain.nizk)
 
 
 def _split(total, parts):

@@ -1,79 +1,135 @@
 #!/usr/bin/env bash
-# macOS/Linux twin of run_all.bat; keep the two in step.
-# Regenerates every test result, table and plot used in the report.
-#
-#   ./run_all.sh                full run: 100 timing runs per ring size (a few minutes)
-#   ./run_all.sh quick          smoke run: a few minutes, checks every step works
-#   ./run_all.sh seed 42        any mode with another seed (default 5163)
-#
-# Results go to eval/results (CSV and the attack tables as .txt) and eval/plots (PNG, CSV);
-# quick mode writes to a quick/ subfolder of each instead.
+# Run group tests, paper size models, and attack scenarios on macOS/Linux.
+# Real sigma_ring benchmarks run only with --benchmarks.
 set -euo pipefail
 cd "$(dirname "$0")"
 
-SEED=5163
-MODE=full
-while [ $# -gt 0 ]; do
-    case "$1" in
-        quick) MODE=quick; shift ;;
-        seed) [ $# -ge 2 ] || { echo "Usage: ./run_all.sh [quick] [seed N]"; exit 2; }
-              SEED="$2"; shift 2 ;;
-        *) echo "Usage: ./run_all.sh [quick] [seed N]"; exit 2 ;;
-    esac
-done
+usage() {
+    cat <<'EOF'
+Usage: ./run_all.sh [--quick] [--seed N] [--benchmarks]
 
-export PYTHONUTF8=1    # tables print symbols such as the paper's ⊥
-PY=python
-[ -x .venv/bin/python ] && PY=.venv/bin/python
-OUT=eval/results
-PLOTS=eval/plots
-if [ "$MODE" = quick ]; then
-    OUT=eval/results/quick; PLOTS=eval/plots/quick
-    RINGS="8 16"; TIME_REPS=2; SIZE_REPS=1; TRIALS=10; CHAIN_RINGS="8 16"
-    PYTEST_ARGS="-q tests/test_skeleton.py tests/test_serialize.py tests/test_size_model.py"
-else
-    # Encoded sizes are fixed for a given shape, so a few size runs are enough.
-    RINGS="128 256 512 1024"; TIME_REPS=100; SIZE_REPS=3; TRIALS=200; CHAIN_RINGS="8 16 32 64"
-    PYTEST_ARGS="-q"
-fi
-mkdir -p "$OUT" "$PLOTS"
-echo "Mode $MODE, seed $SEED, python $PY"
-
-step() { echo; echo "==== $1"; }
-attack() {
-    local name="$1"; shift
-    step "attack: $name"
-    "$PY" -m "attacks.$name" --seed "$SEED" "$@" 2>&1 | tee "$OUT/$name.txt"
+Default: run all tests, paper analytical size models, and attack scenarios.
+--quick: run a small test selection and shorter attack scenarios.
+--benchmarks: also measure real sigma_ring transaction sizes and Spend/Verify
+              timings, then plot them. Full rings: 128, 256, 512, 1024;
+              10 size and 100 timing repetitions per ring. Quick rings: 8, 16;
+              10 size and 10 timing repetitions per ring.
+Every run writes to new timestamped directories; existing data are retained.
+The positional arguments quick and seed N are also accepted for compatibility.
+EOF
 }
 
-step tests
-"$PY" -m pytest $PYTEST_ARGS
-
-step "size model (paper Table 1, Figures 1 and 7)"
-"$PY" -m eval.size_model --seed "$SEED" --output-dir "$PLOTS"
-
-step "measured transaction and proof sizes"
-rm -f "$OUT/bench_size_sigma_ring.csv"     # bench_size refuses to overwrite it
-"$PY" -m eval.bench_size --seed "$SEED" --ring-sizes $RINGS --repetitions "$SIZE_REPS" \
-    --output "$OUT/bench_size_sigma_ring.csv"
-
-step "Spend/Verify timing"
-"$PY" -m eval.bench_time --seed "$SEED" --ring-sizes $RINGS --repetitions "$TIME_REPS" \
-    --quiet --output "$OUT/bench_time_sigma_ring.csv"
-
-# Paper Table 3 only covers rings 128-1024, so the side-by-side comparison runs in full mode.
-if [ "$MODE" = full ]; then
-    step "comparison with the paper"
-    BASE=()
-    [ -f "$OUT/bench_time_sigma_ring_n10.csv" ] && BASE=(--baseline-time "$OUT/bench_time_sigma_ring_n10.csv")
-    "$PY" -m eval.compare --results-dir "$OUT" --plots-dir "$PLOTS" "${BASE[@]}"
+seed=5163
+benchmarks=0
+quick=0
+while (($#)); do
+    case "$1" in
+        --seed|seed)
+            if (($# < 2)) || [[ ! "$2" =~ ^-?[0-9]+$ ]]; then
+                echo "--seed requires an integer." >&2
+                exit 2
+            fi
+            seed="$2"
+            shift 2
+            ;;
+        --benchmarks)
+            benchmarks=1
+            shift
+            ;;
+        --quick|quick)
+            quick=1
+            shift
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "Unknown argument: $1" >&2
+            usage >&2
+            exit 2
+            ;;
+    esac
+done
+export PYTHONUTF8=1
+python_cmd=python
+if [[ -x .venv/bin/python ]]; then
+    python_cmd=.venv/bin/python
 fi
 
-attack miner_privacy --trials "$TRIALS"
-attack anonymity_reduction --trials "$TRIALS"
-attack related_key_tag
-attack q_bound_linkability
-attack chain_scenario --trials "$TRIALS" --ring-sizes $CHAIN_RINGS
+run_id="$(date -u +%Y%m%dT%H%M%SZ)-$$"
+result_dir="eval/results/run_${run_id}"
+plot_root="eval/plots/run_${run_id}"
+model_dir="$plot_root/paper_models"
+attack_dir="$result_dir/attacks"
+if [[ -e "$result_dir" || -e "$plot_root" ]]; then
+    echo "A run output path already exists; choose a new run." >&2
+    exit 2
+fi
+mkdir -p "$attack_dir"
+
+step() {
+    echo
+    echo "==== $1"
+}
+
+attack() {
+    local name="$1"
+    shift
+    step "attack: $name"
+    "$python_cmd" -m "attacks.$name" --seed "$seed" "$@" 2>&1 | tee "$attack_dir/$name.txt"
+}
+
+echo "Seed: $seed; Python: $python_cmd"
+step tests
+if ((quick)); then
+    "$python_cmd" -m pytest -q tests/test_skeleton.py tests/test_serialize.py tests/test_size_model.py
+else
+    "$python_cmd" -m pytest
+fi
+
+step "paper analytical size models"
+"$python_cmd" -m eval.size_model --seed "$seed" --output-dir "$model_dir"
+
+if ((quick)); then
+    attack miner_privacy --trials 10 --ring-sizes 8 16
+    attack anonymity_reduction --trials 10 --ring-sizes 8 16
+    attack related_key_tag --trials 10
+    attack q_bound_linkability --trials 10
+    attack chain_scenario --trials 10 --ring-sizes 8 16
+    attack multi_self_transfer --trials 10 --ring-sizes 8 16
+else
+    for name in miner_privacy anonymity_reduction related_key_tag q_bound_linkability chain_scenario multi_self_transfer; do
+        attack "$name"
+    done
+fi
+
+if ((benchmarks)); then
+    ring_sizes=(128 256 512 1024)
+    time_repetitions=100
+    if ((quick)); then
+        ring_sizes=(8 16)
+        time_repetitions=10
+    fi
+    plot_dir="$plot_root/benchmarks"
+    size_csv="$result_dir/bench_size_sigma_ring.csv"
+    time_csv="$result_dir/bench_time_sigma_ring.csv"
+    step "measured transaction and proof sizes"
+    "$python_cmd" -m eval.bench_size --seed "$seed" --ring-sizes "${ring_sizes[@]}" \
+        --repetitions 10 --output "$size_csv"
+    step "Spend/Verify timing"
+    "$python_cmd" -m eval.bench_time --seed "$seed" --ring-sizes "${ring_sizes[@]}" \
+        --repetitions "$time_repetitions" --output "$time_csv"
+    step "benchmark plots"
+    "$python_cmd" -m eval.plot_results --input "$time_csv" --size-input "$size_csv" \
+        --output-dir "$plot_dir"
+    if ((quick == 0)); then
+        step "comparison with the paper"
+        "$python_cmd" -m eval.compare --time "$time_csv" --size "$size_csv" \
+            --model "$model_dir/figure7_paper_size_model.csv" \
+            --results-dir "$result_dir" --plots-dir "$plot_root/paper_comparison"
+    fi
+fi
 
 echo
-echo "All steps finished. Results are in $OUT and $PLOTS."
+echo "All steps finished. Results: $result_dir and $plot_root."

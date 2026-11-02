@@ -5,6 +5,8 @@ Small trial counts so the suite stays fast. Written with AI assistance (Claude);
 
 import random
 
+import pytest
+
 from attacks._common import Eve, Wallet, World
 from attacks.miner_privacy import one_trial
 from attacks.q_bound_linkability import run_q
@@ -64,3 +66,20 @@ def test_chain_scenario_enforces_rules_and_careless_still_leaks():
         assert r["refused"] and r["rejected"]          # coinbase alone: wallet refuses, chain says ⊥
         assert r["pay_ring_coinbases"] == 0            # ordinary spends get no coinbase decoys
         assert r["certain"] == careless                # exact match only when careless
+
+
+def test_multi_self_transfer_scenario():
+    """Needs succinct.wallet (Part A, coincurve branch); skipped where it is missing."""
+    pytest.importorskip("succinct.wallet")
+    from attacks._common import get_nizk
+    from attacks.chain_scenario import new_chain
+    from attacks.multi_self_transfer import run_trial
+    from succinct import wallet
+
+    rng = random.Random(7)
+    chain, _, _ = new_chain(8, get_nizk("real"), rng)
+    r = run_trial(wallet, chain, 8, rng, 3)
+    assert r["refused"]                 # zero-change self-transfer refused by the wallet
+    assert r["all_nonzero"]             # every own account gets a non-zero amount
+    assert not r["certain"]             # no exact coinbase match
+    assert r["cb_in_ring2"] == 0        # the later payment's ring has no coinbase

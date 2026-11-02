@@ -27,6 +27,7 @@ import time
 
 from attacks._common import Eve
 from succinct import ct, serialize
+from succinct import wallet as policy
 from succinct.chain import Chain
 from succinct.group import G, random_scalar
 from succinct.keyagreement import ka_key
@@ -177,19 +178,19 @@ def main():
     if Style.color and os.name == "nt":
         os.system("")                         # turns on ANSI colours in the Windows console
     nizk = stub if args.stub else sigma_ring
-    chain = Chain(nizk=nizk)
+    chain = Chain(nizk=nizk, reward=600)    # small round numbers, easy to read aloud
 
     step("Setup")
     print(f"   proof system: {nizk.NAME}")
     for _ in range(40):                      # other people's coins, used as decoys
         mpk, _, _ = sakgen(1)
-        _, acc, info = otaccgen(mpk, 1_000, 1)
+        _, acc, info = otaccgen(mpk, 100, 1)
         chain.add_output(acc, info)
     miner_wallet = Wallet("miner (normal wallet)")
     bob, carol = Wallet("bob"), Wallet("carol")
-    _, acc, info = otaccgen(miner_wallet.mpk, 1_000, 1)
+    _, acc, info = otaccgen(miner_wallet.mpk, 100, 1)
     savings = chain.add_output(acc, info)
-    print(f"   chain has {len(chain)} outputs; the miner also owns an ordinary coin of 1,000")
+    print(f"   chain has {len(chain)} outputs; the miner also owns an ordinary coin of 100")
     explain(f"SAKGen (stealth.sakgen): bob gets a secret polynomial f of degree q = {bob.msk.q}",
             f"his address: {len(bob.mpk.lpk)} public points F_i = theta_i*G, plus a view key vdk*G'",
             "the 40 decoys are other people's coins, each made with OTAccGen (stealth.otaccgen)")
@@ -213,9 +214,9 @@ def main():
             "Verify (ct.verify) enforces the same rule: a hand-built ring would return None")
 
     step("Spend coinbase + ordinary coin, with a self-transfer")
-    total = cb_acc.ctxt + 1_000
-    fee = 50
-    to_bob = 500_000
+    total = cb_acc.ctxt + 100
+    fee = 5
+    to_bob = 500
     change = total - fee - to_bob
     t0 = time.perf_counter()
     tx, sig, positions = build(chain, [(miner_key, cb), (miner_wallet, savings)],
@@ -295,11 +296,11 @@ def main():
     explain("the fee is not an output: Mine adds the pending fees to the next coinbase")
 
     step("Same attack, careless self-transfer: bob gets exactly coinbase - fee")
-    _, acc, info = otaccgen(miner_wallet.mpk, 1_000, 1)
+    _, acc, info = otaccgen(miner_wallet.mpk, 100, 1)
     savings2 = chain.add_output(acc, info)
     careless_tx, careless_sig, positions = build(
         chain, [(miner_key2, cb2), (miner_wallet, savings2)],
-        [(bob.mpk, cb2_amount - fee), (miner_wallet.mpk, 1_000)], fee)
+        [(bob.mpk, cb2_amount - fee), (miner_wallet.mpk, 100)], fee)
     chain.submit(careless_tx, careless_sig)
     print(f"   accepted by the chain: the rules and the proof can't tell a careless amount apart")
     explain("Verify can't see which output is change, so self-transfer is the spender's job:",
@@ -312,19 +313,43 @@ def main():
         f" ({'correct' if guess == real else 'wrong'}): the miner's block is linked to bob")
     print(f"   the fix: the self-transfer must change the visible amount, as in the first spend")
 
+    step("Wallet policy (succinct.wallet): refuses a zero-change self-transfer, consolidates safely")
+    miner_key3 = Wallet("miner (coinbase key 3)", miner=True)
+    miner_key4 = Wallet("miner (coinbase key 4)", miner=True)
+    cb3, cb4 = chain.mine_block(miner_key3.mpk), chain.mine_block(miner_key4.mpk)
+    _, acc, info = otaccgen(miner_wallet.mpk, 100, 1)
+    savings3 = chain.add_output(acc, info)
+    own = (savings3, miner_wallet.mpk, miner_wallet.msk)
+    cb3_amount = chain.get(cb3)[0].ctxt
+    try:
+        policy.self_transfer(chain, (cb3, miner_key3.mpk, miner_key3.msk), own, bob.mpk,
+                             cb3_amount + 100 - fee, miner_wallet.mpk, fee, RING_SIZE)
+    except ValueError as e:
+        no(f"wallet refused the zero-change self-transfer: {e}")
+    account_a, account_b = Wallet("miner account A"), Wallet("miner account B")
+    tx_m, sig_m, amounts = policy.multi_self_transfer(
+        chain, [(cb3, miner_key3.mpk, miner_key3.msk), (cb4, miner_key4.mpk, miner_key4.msk)],
+        own, [account_a.mpk, account_b.mpk], fee, RING_SIZE)
+    chain.submit(tx_m, sig_m)
+    ok(f"multi-self-transfer accepted: 2 coinbases + 1 ordinary coin -> 2 own accounts "
+       f"({amounts[0]:,} and {amounts[1]:,}), nothing paid to an outsider")
+    explain("these are wallet policies, not consensus rules: no node can tell an output goes back to",
+            "the miner, so the wallet has to apply them itself (succinct/wallet.py)",
+            "a coinbase-only multi-self-transfer is refused by the S-1 rule, so one ordinary coin is added")
+
     step("Anonymity-reduction attack (paper section 3.2): Eve holds carol's view key")
     alice = Wallet("alice")
-    _, acc, info = otaccgen(alice.mpk, 700_000, 1)
+    _, acc, info = otaccgen(alice.mpk, 700, 1)
     alice_coin = chain.add_output(acc, info)
     tx_a, sig_a, (pos_a,) = build(chain, [(alice, alice_coin)],
-                                  [(carol.mpk, 650_000), (alice.mpk, 49_950)], fee)
+                                  [(carol.mpk, 650), (alice.mpk, 45)], fee)
     eve2 = Eve(chain, [carol.vk])
     known, _ = eve2.known_outputs(tx_a)
     need = known + tx_a.fee
     print(f"   alice spends ONE coin: {known:,} to carol (Eve can read it) + fee {tx_a.fee},"
           f" so the real coin held at least {need:,}")
     # The same transaction as it would look without the S-1 rule: one decoy
-    # swapped for the 600,000 coinbase from the first block.
+    # swapped for the 600 coinbase from the first block.
     slot = next(i for i in range(len(tx_a.ring_refs)) if i != pos_a)
     legacy_refs = list(tx_a.ring_refs)
     legacy_refs[slot] = cb
@@ -353,7 +378,7 @@ def main():
 
     step("Tampering: bob builds a tx, someone edits it in transit")
     tx2, sig2, _ = build(chain, [(bob, new_refs[0])],
-                         [(carol.mpk, 300_000), (bob.mpk, 199_990)], 10)
+                         [(carol.mpk, 300), (bob.mpk, 195)], 5)
     edited = dataclasses.replace(tx2, fee=0)
     (no if verify(edited, sig2, chain) is False else ok)(
         f"edited fee: verify -> {verify(edited, sig2, chain)}")
@@ -368,14 +393,14 @@ def main():
 
     step("Inflation: bob tries to send more than he has")
     try:
-        build(chain, [(bob, new_refs[0])], [(carol.mpk, 900_000), (bob.mpk, 0)], 10)
+        build(chain, [(bob, new_refs[0])], [(carol.mpk, 900), (bob.mpk, 0)], 5)
     except ValueError as e:
         no(f"Spend refuses: {e}")
     original = ct._check_balance
     ct._check_balance = lambda *a: None          # pretend bob patched his wallet
     try:
         tx3, sig3, _ = build(chain, [(bob, new_refs[0])],
-                             [(carol.mpk, 900_000), (bob.mpk, 0)], 10)
+                             [(carol.mpk, 900), (bob.mpk, 0)], 5)
         no(f"patched wallet signs it anyway, but verify -> {verify(tx3, sig3, chain)}")
     finally:
         ct._check_balance = original
