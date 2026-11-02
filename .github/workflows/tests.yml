@@ -17,3 +17,17 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: pip install -r requirements.txt
       - run: python -m pytest
+
+  go:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: go
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache-dependency-path: go/go.sum
+      - run: go vet ./...
+      - run: go test ./...
