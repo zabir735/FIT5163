@@ -1,5 +1,0 @@
-ring_size,repetitions,spend_mean_ms,spend_std_ms,spend_min_ms,spend_max_ms,verify_mean_ms,verify_std_ms,verify_min_ms,verify_max_ms,tx_bytes,proof_bytes,go_version,os,arch,cpus,threads,multiexp,curve,proof
-128,100,105.775,8.450,95.043,135.852,19.114,2.527,16.150,26.747,9962,9126,go1.24.7,linux,amd64,2,1,pippenger,BN254 (gnark-crypto),sigma
-256,100,123.142,10.979,106.331,163.030,27.207,3.702,23.172,38.306,18666,17318,go1.24.7,linux,amd64,2,1,pippenger,BN254 (gnark-crypto),sigma
-512,100,154.469,12.403,133.880,194.320,43.499,5.919,35.998,63.358,36074,33702,go1.24.7,linux,amd64,2,1,pippenger,BN254 (gnark-crypto),sigma
-1024,100,218.014,20.242,187.237,271.012,73.642,8.111,61.348,97.567,70890,66470,go1.24.7,linux,amd64,2,1,pippenger,BN254 (gnark-crypto),sigma

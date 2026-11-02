@@ -1,5 +1,0 @@
-ring_size,repetitions,spend_mean_ms,spend_std_ms,spend_min_ms,spend_max_ms,verify_mean_ms,verify_std_ms,verify_min_ms,verify_max_ms,tx_bytes,proof_bytes,go_version,os,arch,cpus,threads,multiexp,curve,proof
-128,100,462.913,32.367,395.238,567.287,45.685,5.098,37.396,58.964,2324,1479,go1.24.7,linux,amd64,2,1,pippenger,secp256k1 (dcrd),bpp
-256,100,751.464,48.817,641.937,875.324,72.429,7.855,60.513,89.677,2936,1579,go1.24.7,linux,amd64,2,1,pippenger,secp256k1 (dcrd),bpp
-512,100,1416.580,64.384,1272.391,1592.897,133.687,13.274,109.206,165.162,4092,1711,go1.24.7,linux,amd64,2,1,pippenger,secp256k1 (dcrd),bpp
-1024,100,2578.582,127.459,2280.546,2974.283,233.734,21.901,196.007,299.438,6272,1843,go1.24.7,linux,amd64,2,1,pippenger,secp256k1 (dcrd),bpp

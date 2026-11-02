@@ -1,7 +1,0 @@
-Go go1.24.7, linux/amd64, single goroutine, term-by-term multiexp (same algorithm as Python), 100 reps per ring size
-  ring     spend ms    verify ms   tx bytes    proof B
-   128   411.6 ± 39.3   135.1 ± 14.9       9993       9148
-   256   577.0 ± 49.4   218.9 ± 24.3      18697      17340
-   512   901.8 ± 65.1   380.0 ± 36.9      36105      33724
-  1024  1579.2 ± 76.3   733.4 ± 52.0      70921      66492
-wrote bench_go_term.csv

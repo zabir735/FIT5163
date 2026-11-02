@@ -1,5 +1,0 @@
-ring_size,repetitions,spend_mean_ms,spend_std_ms,spend_min_ms,spend_max_ms,verify_mean_ms,verify_std_ms,verify_min_ms,verify_max_ms,tx_bytes,proof_bytes,go_version,os,arch,cpus,threads,multiexp
-128,100,411.610,39.266,337.901,513.824,135.052,14.927,109.829,177.175,9993,9148,go1.24.7,linux,amd64,2,1,term-by-term
-256,100,576.985,49.416,498.441,764.780,218.893,24.292,182.449,286.047,18697,17340,go1.24.7,linux,amd64,2,1,term-by-term
-512,100,901.821,65.087,769.963,1122.508,380.019,36.916,318.217,482.060,36105,33724,go1.24.7,linux,amd64,2,1,term-by-term
-1024,100,1579.182,76.293,1394.964,1776.735,733.436,52.035,639.941,921.071,70921,66492,go1.24.7,linux,amd64,2,1,term-by-term
