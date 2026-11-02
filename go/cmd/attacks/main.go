@@ -54,7 +54,7 @@ var runAll = []struct {
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: attacks <name>|all [--trials N] [--ring-sizes 8,16] [--seed N] [--proof stub|real]")
+		fmt.Fprintln(os.Stderr, "usage: attacks <name>|all [--trials N] [--ring-sizes 8,16] [--seed N] [--proof stub|real|bpp]")
 		fmt.Fprintln(os.Stderr, "names: miner_privacy anonymity_reduction related_key_tag q_bound_linkability chain_scenario multi_self_transfer")
 		os.Exit(2)
 	}
@@ -63,7 +63,7 @@ func main() {
 	seed := fs.Uint64("seed", 5163, "seed for the experiment's own choices")
 	trials := fs.Int("trials", 0, "trials per setting (default: the Python script's)")
 	rings := fs.String("ring-sizes", "", "comma-separated ring sizes")
-	proof := fs.String("proof", "stub", "stub (fast) or real (Σ-protocol)")
+	proof := fs.String("proof", "stub", "stub (fast), real (Σ-protocol) or bpp (Bulletproofs++)")
 	decoys := fs.Int("miner-decoys", 3, "coinbase decoys in legacy rings")
 	qs := fs.String("q", "", "comma-separated q values (q-bound)")
 	cbs := fs.Int("coinbases", 3, "coinbases per multi-self-transfer")

@@ -160,6 +160,7 @@ func explainAttack(eve *attacks.Eve, tx *succinct.Transaction) {
 
 func main() {
 	stub := flag.Bool("stub", false, "use the placeholder proof (fast, NOT private)")
+	bpp := flag.Bool("bpp", false, "use the Bulletproofs++ proof instead of the Σ-protocol")
 	flag.BoolVar(&pause, "step", false, "wait for Enter before each step")
 	flag.BoolVar(&color, "color", false, "colour the output")
 	flag.BoolVar(&ring, "ring", false, "show each attacked ring the way Eve sees it")
@@ -170,6 +171,9 @@ func main() {
 		pause, color, ring = true, true, true
 	}
 	var sys nizk.System = nizk.Sigma{}
+	if *bpp {
+		sys = nizk.BPP{}
+	}
 	if *stub {
 		sys = nizk.Stub{}
 	}
@@ -242,7 +246,7 @@ func main() {
 			"  z = r + h * sum(alpha_j * sk_j)  one response for both inputs",
 			fmt.Sprintf("  gamma   = %s  folds the balance check into Eq. 5", shortS(st.Gamma)),
 			fmt.Sprintf("  tags (key images, sk*U): %s, %s", short(tx.Tags[0].Bytes()), short(tx.Tags[1].Bytes())))
-		if _, real := sys.(nizk.Sigma); real {
+		if _, stubbed := sys.(nizk.Stub); !stubbed {
 			explain(fmt.Sprintf("  proof %s bytes; whole transaction %s bytes",
 				comma(uint64(succinct.ProofSize(sig.Proof))), comma(uint64(succinct.TransactionSize(tx, sig)))))
 		}
@@ -264,6 +268,9 @@ func main() {
 	if rp, real := sig.Proof.(*nizk.RingProof); real {
 		fmt.Printf("   proof: %d x %d masked responses f, all uniformly random, so they look the same whichever position is real\n",
 			len(rp.F), len(rp.F[0]))
+	} else if bp, ok := sig.Proof.(*nizk.BPPProof); ok {
+		fmt.Printf("   proof: BP++, %d folding rounds of 4 points + %d final scalars; nothing in it is per ring member\n",
+			len(bp.Xs), len(bp.N))
 	}
 	newRefs := must(chain.Submit(tx, sig))
 	explain("chain.Submit: the two tags join the spent list; the two new outputs join the chain")

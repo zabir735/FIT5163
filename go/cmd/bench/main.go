@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"succinctgo/attacks"
 	"succinctgo/curve"
 	"succinctgo/nizk"
 	"succinctgo/succinct"
@@ -90,7 +91,12 @@ func main() {
 	rings := flag.String("rings", "128,256,512,1024", "comma-separated ring sizes")
 	out := flag.String("csv", "", "write results to this CSV file")
 	pip := flag.Bool("pippenger", false, "use Pippenger multi-exponentiation instead of one multiplication per term")
+	proofName := flag.String("proof", "sigma", "sigma (Σ-protocol + Bulletproofs range proof) or bpp (Bulletproofs++)")
 	flag.Parse()
+	sys := attacks.GetSystem(*proofName)
+	if _, isStub := sys.(nizk.Stub); isStub {
+		panic("-proof must be sigma or bpp")
+	}
 	curve.UsePippenger = *pip
 	mode := "term-by-term multiexp (same algorithm as Python)"
 	if *pip {
@@ -107,11 +113,11 @@ func main() {
 	}
 	header := []string{"ring_size", "repetitions", "spend_mean_ms", "spend_std_ms", "spend_min_ms", "spend_max_ms",
 		"verify_mean_ms", "verify_std_ms", "verify_min_ms", "verify_max_ms", "tx_bytes", "proof_bytes",
-		"go_version", "os", "arch", "cpus", "threads", "multiexp"}
+		"go_version", "os", "arch", "cpus", "threads", "multiexp", "curve", "proof"}
 	var rows [][]string
 	fmt.Printf("Go %s, %s/%s, single goroutine, %s, %d reps per ring size\n", runtime.Version(), runtime.GOOS, runtime.GOARCH, mode, *reps)
+	fmt.Printf("curve: %s; proof: %s; 2 inputs, 2 outputs\n", curve.CurveName, sys.Name())
 	fmt.Printf("%6s %12s %12s %10s %10s\n", "ring", "spend ms", "verify ms", "tx bytes", "proof B")
-	sys := nizk.Sigma{}
 	for _, n := range sizes {
 		s := prepare(n)
 		// warm-up: builds and caches the generators, so the first timed run isn't penalised
@@ -141,7 +147,8 @@ func main() {
 		f := func(x float64) string { return strconv.FormatFloat(x, 'f', 3, 64) }
 		rows = append(rows, []string{strconv.Itoa(n), strconv.Itoa(len(sp)), f(sm), f(ss), f(sl), f(sh),
 			f(vm), f(vs), f(vl), f(vh), strconv.Itoa(size), strconv.Itoa(proof),
-			runtime.Version(), runtime.GOOS, runtime.GOARCH, strconv.Itoa(runtime.NumCPU()), "1", map[bool]string{false: "term-by-term", true: "pippenger"}[*pip]})
+			runtime.Version(), runtime.GOOS, runtime.GOARCH, strconv.Itoa(runtime.NumCPU()), "1", map[bool]string{false: "term-by-term", true: "pippenger"}[*pip],
+			curve.CurveName, *proofName})
 	}
 	if *out != "" {
 		fh, err := os.Create(*out)

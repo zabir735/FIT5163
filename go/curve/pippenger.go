@@ -1,3 +1,5 @@
+//go:build !bn256
+
 package curve
 
 import (

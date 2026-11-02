@@ -204,10 +204,13 @@ func (e *Eve) GuessSpender(tx *succinct.Transaction, rng *mrand.Rand) (uint32, b
 	return rem[rng.IntN(len(rem))], false
 }
 
-// GetSystem maps "stub" / "real" to a proof system.
+// GetSystem maps "stub" / "real" (or "sigma") / "bpp" to a proof system.
 func GetSystem(name string) nizk.System {
-	if name == "real" {
+	switch name {
+	case "real", "sigma":
 		return nizk.Sigma{}
+	case "bpp":
+		return nizk.BPP{}
 	}
 	return nizk.Stub{}
 }

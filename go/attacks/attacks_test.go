@@ -40,11 +40,11 @@ func TestQBoundIsExact(t *testing.T) {
 func TestRelatedKey(t *testing.T) {
 	var out bytes.Buffer
 	RelatedKey(&out, Config{Trials: 3})
-	s := out.String()
-	if !strings.Contains(s, "Monero-style: delta = H(s1) - H(s2)           100%         0%") {
+	s := strings.Join(strings.Fields(out.String()), " ")
+	if !strings.Contains(s, "naive sk = H(s) + lsk Monero-style: delta = H(s1) - H(s2) 100% 0%") {
 		t.Fatalf("naive keys should always link:\n%s", s)
 	}
-	if strings.Count(s, "0%         0%") < 3 {
+	if strings.Count(s, " 0% 0%") < 3 {
 		t.Fatalf("polynomial keys should never link:\n%s", s)
 	}
 }

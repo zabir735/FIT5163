@@ -9,7 +9,7 @@ import (
 )
 
 // Every chain test runs with both proof systems, like tests/test_ct.py.
-var systems = []nizk.System{nizk.Stub{}, nizk.Sigma{}}
+var systems = []nizk.System{nizk.Stub{}, nizk.Sigma{}, nizk.BPP{}}
 
 type user struct {
 	mpk *MasterPublicKey
@@ -82,7 +82,13 @@ func TestHonestSpendVerifiesAndIsReceived(t *testing.T) {
 }
 
 func TestTamperingFailsTheProof(t *testing.T) {
-	c, alice, ref := world(t, nizk.Sigma{})
+	for _, sys := range []nizk.System{nizk.Sigma{}, nizk.BPP{}} {
+		tamperTest(t, sys)
+	}
+}
+
+func tamperTest(t *testing.T, sys nizk.System) {
+	c, alice, ref := world(t, sys)
 	bob := newUser(5)
 	tx, sig := pay(t, c, alice, ref, []Payment{{bob.mpk, 700}, {alice.mpk, 290}}, 10)
 	edits := map[string]func(*Transaction){
@@ -232,12 +238,46 @@ func TestSerializeRoundTrip(t *testing.T) {
 		t.Fatal("round trip changed the transaction")
 	}
 	// same closed form as serialize.expected_transaction_size: n=8, S=1, 2 outputs
-	proof := 4*33 + 2*2 + (1*7+4)*32 + 4*33 + 3*32 + 2 + 2*7*33 + 2*32
-	want := 2 + 8*4 + 2 + 33 + 2 + 2*(2*33+8+2) + 33 + 8 + 2 + 2*33 + proof
+	P := curve.PointBytes // 33 on secp256k1, 32 on BN254
+	proof := 4*P + 2*2 + (1*7+4)*32 + 4*P + 3*32 + 2 + 2*7*P + 2*32
+	want := 2 + 8*4 + 2 + P + 2 + 2*(2*P+8+2) + P + 8 + 2 + 2*P + proof
 	if len(data) != want {
 		t.Fatalf("size %d, want %d", len(data), want)
 	}
 	if _, _, err := DecodeTransaction(data[:len(data)-1]); err == nil {
 		t.Fatal("truncated bytes were accepted")
+	}
+}
+
+// BP++ transactions: round trip, log-size proof, truncation caught.
+func TestSerializeRoundTripBPP(t *testing.T) {
+	c, alice, ref := world(t, nizk.BPP{})
+	bob := newUser(5)
+	tx, sig := pay(t, c, alice, ref, []Payment{{bob.mpk, 700}, {alice.mpk, 290}}, 10)
+	data, err := EncodeTransaction(tx, sig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tx2, sig2, err := DecodeTransactionWith(data, nizk.BPP{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	again, _ := EncodeTransaction(tx2, sig2)
+	if !bytes.Equal(data, again) || c.Verify(tx2, sig2) != Valid {
+		t.Fatal("round trip changed the transaction")
+	}
+	// n=8, S=1, m=2: 136 entries -> 5 rounds, 5 final scalars (136 -> 160 = 5*32)
+	P := curve.PointBytes
+	proof := 5*P + 2 + 2*P + 2 + 32 + 4*32 + 2*32 + 2 + 5*4*P + 2 + 5*32
+	if got := ProofSize(sig.Proof); got != proof {
+		t.Fatalf("proof size %d, want %d", got, proof)
+	}
+	for cut := 1; cut < 200; cut += 37 {
+		if _, _, err := DecodeTransactionWith(data[:len(data)-cut], nizk.BPP{}); err == nil {
+			t.Fatalf("truncated by %d bytes was accepted", cut)
+		}
+	}
+	if _, _, err := DecodeTransaction(data); err == nil {
+		t.Fatal("a BP++ transaction decoded as a Σ-protocol one")
 	}
 }

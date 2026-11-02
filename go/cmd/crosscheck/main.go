@@ -1,3 +1,5 @@
+//go:build !bn256
+
 // Command crosscheck shows the Go and Python versions are the same scheme: a
 // transaction made by one verifies in the other.
 //

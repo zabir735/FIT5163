@@ -1,3 +1,5 @@
+//go:build !bn256
+
 // Package curve is the Go twin of succinct/group.py, transcript.py, pedersen.py,
 // tagging.py and keyagreement.py: the prime-order group, the hashes and the
 // small building blocks everything else is made from.
@@ -22,6 +24,9 @@ import (
 
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 )
+
+// CurveName is printed by the benchmarks.
+const CurveName = "secp256k1 (dcrd)"
 
 // PointBytes is the size of an encoded point: SEC1 compressed, or 33 zero bytes
 // for the identity.
