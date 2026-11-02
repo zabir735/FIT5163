@@ -1,0 +1,8 @@
+Go go1.24.7, linux/amd64, single goroutine, Pippenger multiexp, 100 reps per ring size
+curve: BN254 (gnark-crypto); proof: Bulletproofs++ weighted norm argument for Eq. 5 + bits (log size, our encoding); 2 inputs, 2 outputs
+  ring     spend ms    verify ms   tx bytes    proof B
+   128   180.1 ± 10.7    14.4 ± 1.7        2284       1448
+   256   300.9 ± 20.1    23.2 ± 3.0        2892       1544
+   512   543.8 ± 32.9    38.6 ± 4.7        4044       1672
+  1024  1038.5 ± 53.2    71.8 ± 8.9        6220       1800
+wrote bench_bn254_bpp_msm.csv

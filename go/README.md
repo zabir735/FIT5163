@@ -84,7 +84,56 @@ build: Python has neither BN254 nor the BP++ proof.
 
 ## Results
 
-RESULTS_PLACEHOLDER
+All runs: one core, 100 spend/verify pairs per ring size, 2 inputs and 2
+outputs, the same Linux container (not the paper's Apple M1). Times are
+means in ms; sizes are the full transaction / the proof alone, in bytes.
+Raw output and CSVs are in `results/`.
+
+**Ring 128**
+
+| Version | Spend | Verify | Tx bytes | Proof bytes |
+|---|---:|---:|---:|---:|
+| Python, secp256k1, Σ-protocol | 115 | 39 | 9,993 | 9,148 |
+| Go, secp256k1, Σ, one mult per term | 412 | 135 | 9,993 | 9,148 |
+| Go, secp256k1, Σ, Pippenger | 260 | 55 | 9,993 | 9,148 |
+| Go, secp256k1, **BP++**, Pippenger | 463 | 46 | 2,324 | 1,479 |
+| Go, **BN254**, Σ, gnark MSM | 106 | 19 | 9,962 | 9,126 |
+| Go, **BN254**, **BP++**, gnark MSM | 180 | 14 | 2,284 | 1,448 |
+| Paper (Go, bn256, BP++, M1) | 2.0 | 1.2 | 1,648 | ~896 |
+
+**Ring 1024**
+
+| Version | Spend | Verify | Tx bytes | Proof bytes |
+|---|---:|---:|---:|---:|
+| Python, secp256k1, Σ-protocol | 488 | 231 | 70,921 | 66,492 |
+| Go, secp256k1, Σ, one mult per term | 1,579 | 733 | 70,921 | 66,492 |
+| Go, secp256k1, Σ, Pippenger | 610 | 228 | 70,921 | 66,492 |
+| Go, secp256k1, **BP++**, Pippenger | 2,579 | 234 | 6,272 | 1,843 |
+| Go, **BN254**, Σ, gnark MSM | 218 | 74 | 70,890 | 66,470 |
+| Go, **BN254**, **BP++**, gnark MSM | 1,039 | 72 | 6,220 | 1,800 |
+| Paper (Go, bn256, BP++, M1) | 3.6 | 2.6 | 5,424 | ~1,088 |
+
+What this shows:
+
+* **Bulletproofs++ fixes size, not speed.** The proof drops from 66 KB to
+  1.8 KB at ring 1024 and grows by about 100 bytes per doubling of the ring,
+  like the paper's. Transactions are now within 15–40% of the paper's;
+  what's left is ring references (4 B each, as in the paper) and our slightly
+  bigger proof. Verify gets a little faster. Spend gets slower: a
+  straightforward BP++ prover folds its generator vectors point by point,
+  which costs about one full multiplication per entry per vector.
+* **The curve library matters more than the language.** Plain Go with the
+  same algorithm is slower than Python, because dcrd's multiplication
+  (~175 µs) is slower than libsecp256k1's (~39 µs) and profiling shows 95%
+  of the time in it. gnark-crypto's BN254 (~61 µs, and a much faster
+  multi-exponentiation) is the single biggest speed-up: 2.5–3× on everything.
+* **We do not reach the paper's times.** The best version here is still
+  ~50–300× slower than Table 3. A different CPU explains a factor of a few,
+  not that. The paper's Spend barely grows with the ring (2.0 → 3.6 ms for
+  8× more members). Even one multi-exponentiation over 1,024 points takes
+  ~15 ms on this machine with gnark. So their prover must avoid work linear
+  in the ring in a way their paper doesn't describe, or measure something
+  narrower than our full Spend/Verify. We can't tell which from the paper.
 
 ## The Bulletproofs++ proof (`nizk/bpp.go`)
 

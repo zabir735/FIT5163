@@ -1,0 +1,8 @@
+Go go1.24.7, linux/amd64, single goroutine, Pippenger multiexp, 100 reps per ring size
+curve: secp256k1 (dcrd); proof: Bulletproofs++ weighted norm argument for Eq. 5 + bits (log size, our encoding); 2 inputs, 2 outputs
+  ring     spend ms    verify ms   tx bytes    proof B
+   128   462.9 ± 32.4    45.7 ± 5.1        2324       1479
+   256   751.5 ± 48.8    72.4 ± 7.9        2936       1579
+   512  1416.6 ± 64.4   133.7 ± 13.3       4092       1711
+  1024  2578.6 ± 127.5   233.7 ± 21.9       6272       1843
+wrote bench_secp_bpp_msm.csv

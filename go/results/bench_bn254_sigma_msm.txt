@@ -1,0 +1,8 @@
+Go go1.24.7, linux/amd64, single goroutine, Pippenger multiexp, 100 reps per ring size
+curve: BN254 (gnark-crypto); proof: Σ-protocol for Eq. 5 (linear size) + Bulletproofs range proof; 2 inputs, 2 outputs
+  ring     spend ms    verify ms   tx bytes    proof B
+   128   105.8 ± 8.5     19.1 ± 2.5        9962       9126
+   256   123.1 ± 11.0    27.2 ± 3.7       18666      17318
+   512   154.5 ± 12.4    43.5 ± 5.9       36074      33702
+  1024   218.0 ± 20.2    73.6 ± 8.1       70890      66470
+wrote bench_bn254_sigma_msm.csv
