@@ -1,21 +1,12 @@
-# Python
+# plot script
 __pycache__/
-*.py[cod]
-.pytest_cache/
-.hypothesis/
-*.egg-info/
-
-# Environments
 .venv/
-venv/
 
-# IDE (keep shared project files, drop per-user state)
-.idea/workspace.xml
-.idea/shelf/
+# editors and OS
+.idea/
 .vscode/
+.DS_Store
 
-# Generated evaluation output (regenerate with run_all.bat / run_all.sh)
-eval/plots/*.png
-eval/plots/*.csv
-eval/plots/quick/
-eval/results/
+# local cross-check files
+*.json
+!succinct/testdata/*.json

@@ -1,22 +1,22 @@
 """Plot every version of SuccinCT against the paper: transaction size, Spend
 time and Verify time against ring size.
 
-Reads the Go CSVs in go/results/, the Python CSVs in eval/results/ and the
-paper's numbers (Table 3 for time, the Table 1 size model for bytes), and
-writes three PNGs to go/results/plots/. Run from the repository root:
+Reads the Go CSVs in results/, the Python version's results and the paper's
+size model in results/baseline/ (copied from the Python branch's eval/), and
+the paper's Table 3 timings below, and writes three PNGs to results/plots/.
+Run from the repository root:
 
-    python go/plot_go.py
+    python plot_go.py
 
 Every line has its own marker as well as its colour, and the legend names
 them, so no line is told apart by colour alone. Where lines overlap (the
 Σ-protocol sizes are identical in every version) the legend still lists them.
-The time axes are logarithmic because the versions differ by up to 1000x; the size axis is linear so the drop from BP++ is shown at true scale; the numbers themselves are in go/README.md.
+The time axes are logarithmic because the versions differ by up to 1000x; the size axis is linear so the drop from BP++ is shown at true scale; the numbers themselves are in README.md.
 """
 
 from __future__ import annotations
 
 import csv
-import sys
 from pathlib import Path
 
 import matplotlib
@@ -25,11 +25,19 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 from matplotlib.ticker import FuncFormatter, LogLocator, NullFormatter  # noqa: E402
 
-ROOT = Path(__file__).resolve().parent.parent
-GO = ROOT / "go" / "results"
+ROOT = Path(__file__).resolve().parent
+GO = ROOT / "results"
+BASE = GO / "baseline"
 OUT = GO / "plots"
-sys.path.insert(0, str(ROOT))
-from eval.compare import PAPER_TABLE3_MS  # noqa: E402
+
+# Paper Table 3 (Go, cloudflare/bn256, Bulletproofs++, Apple M1, one thread):
+# ring size -> (spend mean, spend std, verify mean, verify std), ms.
+PAPER_TABLE3_MS = {
+    128: (2.00509, 0.323716, 1.24612, 0.221242),
+    256: (2.18062, 0.097861, 1.39342, 0.123428),
+    512: (2.64914, 0.128827, 1.80817, 0.206267),
+    1024: (3.56213, 0.158974, 2.60732, 0.169522),
+}
 
 RINGS = [128, 256, 512, 1024]
 INK, MUTED, GRID = "#1f1f1e", "#6b6a63", "#e4e3dd"
@@ -53,7 +61,7 @@ def read(path: Path) -> dict[int, dict[str, str]]:
 
 def paper_bytes() -> dict[int, float]:
     """Total bytes of the paper's model (S = T = 2), from eval.size_model's CSV."""
-    path = ROOT / "eval" / "plots" / "figure7_paper_size_model.csv"
+    path = BASE / "figure7_paper_size_model.csv"
     out: dict[int, float] = {}
     if not path.exists():
         return out
@@ -69,8 +77,8 @@ def paper_bytes() -> dict[int, float]:
 
 
 def load() -> dict[str, dict[str, dict[int, float]]]:
-    py_t = read(ROOT / "eval" / "results" / "bench_time_sigma_ring.csv")
-    py_s = read(ROOT / "eval" / "results" / "bench_size_sigma_ring.csv")
+    py_t = read(BASE / "bench_time_sigma_ring.csv")
+    py_s = read(BASE / "bench_size_sigma_ring.csv")
     data = {
         "python": {
             "spend": {n: float(py_t[n]["spend_mean_ms"]) for n in py_t},
