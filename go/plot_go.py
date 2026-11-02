@@ -9,8 +9,8 @@ writes three PNGs to go/results/plots/. Run from the repository root:
 
 Every line has its own marker as well as its colour, and the legend names
 them, so no line is told apart by colour alone. Where lines overlap (the
-Σ-protocol sizes are identical in every version) the legend still lists them. The y axes are logarithmic because the versions differ by up to
-1000x; the numbers themselves are in go/README.md.
+Σ-protocol sizes are identical in every version) the legend still lists them.
+The time axes are logarithmic because the versions differ by up to 1000x; the size axis is linear so the drop from BP++ is shown at true scale; the numbers themselves are in go/README.md.
 """
 
 from __future__ import annotations
@@ -116,22 +116,26 @@ def chart(data, metric: str, title: str, ylabel: str, fname: str) -> Path:
         ax.plot(xs, ys, color=colour, lw=2, marker=marker, ms=7,
                 markeredgecolor="white", markeredgewidth=1.5, label=label, zorder=3)
 
-    ax.set_yscale("log")
-    lo, hi = ax.get_ylim()
-    ax.set_ylim(lo, hi)
-    if metric == "bytes":
-        ax.annotate("Python and both Go Σ-protocol versions:\nwithin 31 bytes, so the three lines overlap",
-                    xy=(256, data["bn_sigma"]["bytes"][256]), xytext=(300, 45000),
-                    fontsize=8.5, color=MUTED, arrowprops=dict(arrowstyle="-", color=MUTED, lw=0.8))
-
+    linear = metric == "bytes"  # size: a linear axis shows the 11x drop as it is
     ax.set_xscale("log", base=2)
-    ax.set_yscale("log")
     ax.set_xticks(RINGS)
     ax.set_xticklabels([str(n) for n in RINGS])
     ax.set_xlim(110, 1100)
-    ax.yaxis.set_major_locator(LogLocator(base=10, subs=(1, 2, 5)))
-    ax.yaxis.set_major_formatter(FuncFormatter(human))
-    ax.yaxis.set_minor_formatter(NullFormatter())
+    if linear:
+        ax.set_ylim(0, 76000)
+        ax.yaxis.set_major_formatter(FuncFormatter(human))
+        ax.annotate("Σ-protocol: Python and both Go curves\n(within 31 bytes, lines overlap)",
+                    xy=(512, data["bn_sigma"]["bytes"][512]), xytext=(150, 48000),
+                    fontsize=8.5, color=MUTED, arrowprops=dict(arrowstyle="-", color=MUTED, lw=0.8))
+        bpp, sig = data["bn_bpp"]["bytes"][1024], data["bn_sigma"]["bytes"][1024]
+        ax.annotate(f"BP++: {sig / bpp:.0f}x smaller at ring 1024\n(close to the paper)",
+                    xy=(1024, bpp), xytext=(400, 16000),
+                    fontsize=8.5, color=MUTED, arrowprops=dict(arrowstyle="-", color=MUTED, lw=0.8))
+    else:
+        ax.set_yscale("log")
+        ax.yaxis.set_major_locator(LogLocator(base=10, subs=(1, 2, 5)))
+        ax.yaxis.set_major_formatter(FuncFormatter(human))
+        ax.yaxis.set_minor_formatter(NullFormatter())
     ax.set_xlabel("Ring size (members)", color=MUTED)
     ax.set_ylabel(ylabel, color=MUTED)
     ax.set_title(title, loc="left", color=INK, fontsize=12, pad=12)
@@ -144,7 +148,8 @@ def chart(data, metric: str, title: str, ylabel: str, fname: str) -> Path:
     ax.tick_params(colors=MUTED, labelsize=9)
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.13), ncol=3, frameon=False,
               fontsize=8.5, labelcolor=INK)
-    fig.text(0.01, 0.005, "Log scales. Ours: one core, 100 runs, Linux container. "
+    scale = "Linear y axis" if linear else "Log y axis"
+    fig.text(0.01, 0.005, f"{scale}, ring size doubles per step. Ours: one core, 100 runs, Linux container. "
              "Paper: Table 3 (Apple M1) / Table 1 size model.", fontsize=7.5, color=MUTED)
     fig.subplots_adjust(left=0.09, right=0.97, top=0.9, bottom=0.25)
     OUT.mkdir(parents=True, exist_ok=True)
