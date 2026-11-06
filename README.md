@@ -40,7 +40,7 @@ tests/             unit, property-based and tamper tests
 demo.py            scripted end-to-end scenario for the live demo
 docs/              team notes (PART_A_NOTES.md: interfaces, decisions, paper issues found)
 go/                Go extension: same scheme, plus BN254 and a Bulletproofs++ proof (see "Go extension" below;
-                   in the git repository it lives on the go-port branch)
+                   submitted as a separate Go zip, and on the go-port branch in the git repository)
 ```
 
 Any proof system plugs in through `prove(stmt, wit)` / `verify(stmt, proof)`, passed as
@@ -307,6 +307,13 @@ the paper uses:
 - the BN254 curve (`-tags bn256`, via gnark-crypto);
 - a Bulletproofs++-style log-size proof of Eq. 5 (`go/nizk/bpp.go`), our own
   encoding, since the paper does not publish one.
+
+**Getting it.** The Go extension is submitted as its own zip
+(`FIT5163-A2-…-Code-Go.zip`), whose contents unpack into a folder named
+`go`. Unzip it *inside this project's folder*, so that this README,
+`demo.py` and `go/` sit side by side; every command below assumes that
+layout. On its own, the Go folder still builds and tests; only the
+cross-check needs the Python project next to it.
 
 Prerequisites: Go 1.24 or newer (`go version`). The first build downloads
 dcrd secp256k1 and gnark-crypto (pinned in `go/go.sum`).
