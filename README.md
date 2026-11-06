@@ -1,8 +1,9 @@
 # SuccinCT in Go
 
-This branch holds only the Go version. The main project, the Python
-implementation the group submits and demos, is on the
-`part-a-coincurve-wallet` branch.
+This is the Go extension of the group's SuccinCT project. In the submission
+it sits as `go/` inside the Python project; in the git repository it is the
+`go-port` branch. The main project, the Python implementation the group
+submits and demos, is on the `part-a-coincurve-wallet` branch.
 
 A second implementation of our Python code, written to answer one question
 from the evaluation: **how much of the gap with the paper is the language, the
@@ -65,36 +66,123 @@ Hashing uses Go's standard `crypto/sha3`. `curve/point.go` and
 `curve/scalar_bn.go` the BN254 one; nothing outside `curve/` knows which
 curve it runs on.
 
-## Running it
+## Setup
 
-Needs Go 1.24 or newer (`go version`). From this folder:
+**Prerequisites**
+
+* Go 1.24 or newer. Install from <https://go.dev/dl/>, then check with `go version`.
+* Optional: Python 3.11–3.13 with matplotlib, only for `plot_go.py`. The
+  Python half of the cross-check (`crosscheck.py`) also needs the Python
+  project's packages (`pip install -r ../requirements.txt` from the
+  submission layout).
+
+**Dependencies.** `go.mod` pins them and `go.sum` holds their checksums:
+
+* `github.com/decred/dcrd/dcrec/secp256k1/v4` v4.4.1, the default curve;
+* `github.com/consensys/gnark-crypto` v0.14.0, the BN254 curve, used only with `-tags bn256`.
+
+Go downloads them on the first build. To fetch them in advance, run:
 
 ```
-go test ./...                         # unit, compatibility and attack tests
+go mod download
+```
+
+Two of gnark-crypto's own dependencies (`golang.org/x/sys`, `rsc.io/tmplfunc`)
+are fetched from their official GitHub mirrors through `replace` lines,
+because the network this was built on blocked golang.org and rsc.io. That
+changes where they come from, not what they are, and it works on any network.
+
+**Configuration.** Nothing to configure; all options are command-line flags:
+
+* `-tags bn256` switches the curve from secp256k1 to BN254 at build time;
+* `-proof sigma|bpp` (bench, attacks) or `-bpp` (demo) picks the proof;
+* `-pippenger` turns on multi-exponentiation in the benchmark;
+* `-reps` and `-rings` control the benchmark;
+* `-stub`, `-explain` and `-present` control the demo, as in Python.
+
+Seeds are fixed at 5163 where the Python version uses one; keys and proofs
+use OS randomness (`crypto/rand`).
+
+## Running it
+
+From this folder:
+
+```
+go test ./...                         # unit, compatibility and attack tests (secp256k1)
+go test -tags bn256 ./...             # the same tests on BN254
 go run ./cmd/demo -present            # the demo, real proof, pauses between steps
 go run ./cmd/demo -stub -explain      # quick, with the values behind each step
+go run -tags bn256 ./cmd/demo -bpp    # the demo on BN254 with the Bulletproofs++ proof
 go run ./cmd/attacks all              # all six experiments with run_all's settings
 go run ./cmd/attacks miner_privacy -trials 200 -ring-sizes 8,16,32
 go run ./cmd/bench                    # 100 runs per ring size, same algorithm as Python
-go run ./cmd/bench -pippenger         # the same with Pippenger multi-exponentiation
-go run ./cmd/bench -pippenger -proof bpp            # Bulletproofs++ instead of the Σ-protocol
-go run -tags bn256 ./cmd/bench -pippenger -proof bpp # ...on BN254, the paper's setting
-go run ./cmd/demo -bpp                # the demo with the Bulletproofs++ proof
-go test -tags bn256 ./...             # every test again on BN254
+go run ./cmd/bench -reps 10 -rings 128,1024   # a quick version
+python plot_go.py                     # redraw the charts in results/plots/
 ```
 
-The first `go` command downloads the modules. `go.mod` fetches two of
-gnark-crypto's dependencies from their GitHub mirrors (`replace` lines),
-because the network this was built on blocks golang.org and rsc.io; that
-changes where they come from, not what they are.
+Cross-check with Python, from the Python project's root (the folder above this one):
 
-Cross-checking with Python only works in the default (secp256k1, Σ-protocol)
-build: Python has neither BN254 nor the BP++ proof.
+```
+(cd go && go run ./cmd/crosscheck make fx.json) && python go/crosscheck.py check go/fx.json   # Go -> Python
+python go/crosscheck.py make fx.json && (cd go && go run ./cmd/crosscheck check ../fx.json)    # Python -> Go
+```
+
+The cross-check only works in the default build (secp256k1, Σ-protocol),
+because Python has neither BN254 nor the BP++ proof.
+
+## Expected output
+
+Times vary by machine; everything else should match.
+
+| Command | Expected result |
+|---|---|
+| `go test ./...` | `ok` for `succinctgo/attacks`, `curve`, `nizk`, `succinct` (27 tests) |
+| `go test -tags bn256 ./...` | the same four `ok` lines (23 tests; the Python-compatibility tests are secp256k1 only) |
+| `go run ./cmd/demo` | first line `proof system: Σ-protocol for Eq. 5 (linear size) + Bulletproofs range proof (Go)`; the same 13 steps as `python demo.py`; ends with `Done.` |
+| `go run -tags bn256 ./cmd/demo -bpp` | `proof system: Bulletproofs++ weighted norm argument …`, a line `proof: BP++, 5 folding rounds of 4 points + 5 final scalars`, the same outcomes; ends with `Done.` |
+| `go run ./cmd/attacks all` | six sections (Attack 1, Attack 2, Related-key, q-bound, End-to-end, Multi-self-transfer) with the same conclusions as `results/attacks.txt` |
+| `go run ./cmd/bench …` | a header naming the Go version, curve and proof, then one row per ring: spend ms, verify ms, tx bytes, proof bytes. Bytes are exact: 9,993 / 9,148 at ring 128 on secp256k1 with Σ. |
+| cross-check, both directions | `original: True`, `fee edited: False`, `tek swapped: False`, `resubmitted: None` |
+| `python plot_go.py` | `wrote results/plots/size_vs_paper.png` (and spend, verify) |
+
+## Reproducing the results
+
+Each file in `results/` comes from one command (100 runs per ring size,
+rings 128–1024, two inputs and two outputs). Each writes a table to the
+screen and a CSV with `-csv`:
+
+| File | Command |
+|---|---|
+| `bench_go_term.*` | `go run ./cmd/bench -csv results/bench_go_term.csv` |
+| `bench_go_pippenger.*` | `go run ./cmd/bench -pippenger -csv results/bench_go_pippenger.csv` |
+| `bench_secp_bpp_msm.*` | `go run ./cmd/bench -pippenger -proof bpp -csv results/bench_secp_bpp_msm.csv` |
+| `bench_bn254_sigma_msm.*` | `go run -tags bn256 ./cmd/bench -pippenger -proof sigma -csv results/bench_bn254_sigma_msm.csv` |
+| `bench_bn254_bpp_msm.*` | `go run -tags bn256 ./cmd/bench -pippenger -proof bpp -csv results/bench_bn254_bpp_msm.csv` |
+| `attacks.txt` | `go run ./cmd/attacks all > results/attacks.txt` |
+| `plots/*.png` | `python plot_go.py` |
+
+`results/baseline/` holds copies of the Python version's Linux results and
+the paper's size model (from the Python project's `eval/`), so the charts
+can be drawn from this folder alone.
+
+## Environment of the recorded results
+
+| Item | Value |
+|---|---|
+| Machine | Cloud VM, Intel Xeon @ 2.10 GHz, 2 vCPUs (each CSV records `cpus = 2`) |
+| OS / architecture | Linux, amd64 |
+| Go | 1.24.7 |
+| Threads | one goroutine (single core), as in the paper's Table 3 |
+| Libraries | dcrd secp256k1 v4.4.1, gnark-crypto v0.14.0 |
+
+This is not the M3 Max that produced the Python project's final results, so
+compare Go timings with each other and with the Python row measured on the
+same VM, not with the M3 Max numbers.
 
 ## Results
 
 All runs: one core, 100 spend/verify pairs per ring size, 2 inputs and 2
-outputs, the same Linux container (not the paper's Apple M1). Times are
+outputs, the same Linux VM described above (not the paper's Apple M1). Times are
 means in ms; sizes are the full transaction / the proof alone, in bytes.
 Raw output and CSVs are in `results/`; the Python version's results and the
 paper's size model it is compared with are copied into `results/baseline/`.
@@ -204,5 +292,15 @@ those reasons.
 * **Optional Pippenger multi-exponentiation** (`curve.UsePippenger`); off by
   default so the comparison with Python is like for like.
 
-PROVENANCE: written with AI assistance (Claude) as a port of the group's
-Python code; checked by the compatibility tests and the cross-check above.
+## Provenance
+
+| Component | Source |
+|---|---|
+| Port of the scheme (`curve/`, `nizk/` Σ-protocol and range proof, `succinct/`, `attacks/`, `cmd/`) | own code, AI-assisted (Claude), run and checked by Zabir; a port of the group's Python code, kept byte-compatible with it by `succinct/compat_test.go` and the cross-check |
+| BN254 backend (`curve/point_bn.go`, `curve/scalar_bn.go`) | own code, AI-assisted (Claude); curve arithmetic from gnark-crypto v0.14.0 |
+| secp256k1 backend (`curve/point.go`, `curve/scalar_secp.go`, `curve/pippenger.go`) | own code, AI-assisted (Claude); curve arithmetic from dcrd secp256k1 v4.4.1 |
+| Bulletproofs++ proof (`nizk/bpp.go`) | own design and code, AI-assisted (Claude). It follows the paper's §5 bit hint and the weighted norm linear argument of Eagen, Kanjalkar, Ruffing and Nick, "Bulletproofs++" (EUROCRYPT 2024). Tested, not reviewed by a cryptographer. |
+| `crosscheck.py`, `plot_go.py` | own code, AI-assisted (Claude); `crosscheck.py` uses the group's Python package |
+| `results/baseline/` | copies of the group's Python results (Part D) and the paper's size model; the paper's Table 3 timings are typed into `plot_go.py` |
+
+No author code exists for SuccinCT; nothing here is copied from the paper's authors.
