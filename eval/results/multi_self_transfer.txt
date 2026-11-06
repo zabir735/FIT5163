@@ -1,0 +1,27 @@
+Multi-self-transfer on the real Chain | trials=200 seed=5163 proof=stub
+3 coinbases + 1 ordinary coin consolidated into 2 own accounts, then a payment to Bob.
+
+ring size n = 8
+  wallet.self_transfer with zero change refused: 100.0%
+  multi-self-transfer accepted by chain: 100%   every account non-zero: 100.0%
+    Eve success  48.5%   certain   0.0%   chance 50.0%
+  later payment to Bob: coinbases in ring 0.00 on average   Eve success  13.0%   chance 12.5%
+
+ring size n = 16
+  wallet.self_transfer with zero change refused: 100.0%
+  multi-self-transfer accepted by chain: 100%   every account non-zero: 100.0%
+    Eve success  28.5%   certain   0.0%   chance 25.0%
+  later payment to Bob: coinbases in ring 0.00 on average   Eve success   5.0%   chance 6.2%
+
+ring size n = 32
+  wallet.self_transfer with zero change refused: 100.0%
+  multi-self-transfer accepted by chain: 100%   every account non-zero: 100.0%
+    Eve success  11.0%   certain   0.0%   chance 12.5%
+  later payment to Bob: coinbases in ring 0.00 on average   Eve success   2.5%   chance 3.1%
+
+ring size n = 64
+  wallet.self_transfer with zero change refused: 100.0%
+  multi-self-transfer accepted by chain: 100%   every account non-zero: 100.0%
+    Eve success   4.0%   certain   0.0%   chance 6.2%
+  later payment to Bob: coinbases in ring 0.00 on average   Eve success   1.5%   chance 1.6%
+
