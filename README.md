@@ -33,8 +33,9 @@ go run ./cmd/crosscheck check fx.json   # Go checks a file the Python version wr
 ```
 
 The Python side of the check (`crosscheck.py`) needs the Python package, so
-it lives with the Python code; copy it from an earlier commit of this branch
-(`git show 7cf8e1c:go/crosscheck.py`) into the Python project to run it.
+it runs only when this folder sits as `go/` inside the Python project, which is
+how the group's submission is laid out. From the Python project's root:
+`python go/crosscheck.py check fx.json` (or `make fx.json`).
 Both directions print `original: True`, `fee edited: False`, `tek swapped:
 False`, `resubmitted: None`. `succinct/compat_test.go` keeps this checked: it
 compares test vectors with the Python output and verifies a transaction the
