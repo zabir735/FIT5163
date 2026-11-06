@@ -1,0 +1,27 @@
+Attack 1: miner privacy | trials=200 seed=5163 proof=stub
+Eve holds Bob's view key; success = she names a real input of the transaction.
+
+ring size n = 8
+  scenario                             Eve success  certain   chance  tx valid
+  legacy: no mitigation                     100.0%   100.0%    12.5%         -
+  self-transfer only                         11.0%     0.0%    12.5%         -
+  self-transfer + S-1 ring rule              18.5%     0.0%    25.0%    100.0%
+  careless self-transfer + S-1 rule         100.0%   100.0%    25.0%    100.0%
+
+ring size n = 16
+  scenario                             Eve success  certain   chance  tx valid
+  legacy: no mitigation                     100.0%   100.0%     6.2%         -
+  self-transfer only                          6.0%     0.0%     6.2%         -
+  self-transfer + S-1 ring rule              11.0%     0.0%    12.5%    100.0%
+  careless self-transfer + S-1 rule         100.0%   100.0%    12.5%    100.0%
+
+ring size n = 32
+  scenario                             Eve success  certain   chance  tx valid
+  legacy: no mitigation                     100.0%   100.0%     3.1%         -
+  self-transfer only                          2.5%     0.0%     3.1%         -
+  self-transfer + S-1 ring rule               5.0%     0.0%     6.2%    100.0%
+  careless self-transfer + S-1 rule         100.0%   100.0%     6.2%    100.0%
+
+certain = Eve found an exact coinbase match (output + fee = coinbase amount).
+chance  = success of a blind guess (real inputs / ring size).
+tx valid: legacy rows are observable-only (Spend refuses to build them).
