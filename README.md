@@ -1,8 +1,11 @@
 # SuccinCT in Go
 
 This is the Go extension of the group's SuccinCT project. In the submission
-it sits as `go/` inside the Python project; in the git repository it is the
-`go-port` branch. The main project, the Python implementation the group
+it is its own zip (`FIT5163-A2-…-Code-Go.zip`) that unpacks into a folder
+named `go`; unzip it inside the Python project's folder so the two sit side
+by side as `go/`. In the git repository it is the `go-port` branch. Building,
+testing, the demo and the benchmarks work from this folder on its own; only
+the Python half of the cross-check needs the Python project around it. The main project, the Python implementation the group
 submits and demos, is on the `part-a-coincurve-wallet` branch.
 
 A second implementation of our Python code, written to answer one question
