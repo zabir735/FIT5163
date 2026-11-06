@@ -16,7 +16,7 @@ Needs succinct/wallet.py (Part A). The wallet builds with the chain's own proof 
 --proof stub (default, fast) or --proof real (sigma_ring) both work. Run from the repo root:
     python3 -m attacks.multi_self_transfer --trials 50 --ring-sizes 8 16
 
-PROVENANCE: first draft AI-assisted (Claude); the author must review, run and adapt it.
+PROVENANCE: first draft AI-assisted (Claude); reviewed, run and tested by the group (tests/test_attacks.py).
 """
 
 from __future__ import annotations

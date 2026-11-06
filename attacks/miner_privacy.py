@@ -4,7 +4,7 @@ Reports attack success rate over N trials, unmitigated vs. with the self-transfe
 
 Run from the repo root:  python -m attacks.miner_privacy --trials 30 --ring-sizes 8 16 32
 
-PROVENANCE: first draft AI-assisted (Claude); the group must review, run and adapt it.
+PROVENANCE: first draft AI-assisted (Claude); reviewed, run and tested by the group (tests/test_attacks.py).
 """
 
 from __future__ import annotations

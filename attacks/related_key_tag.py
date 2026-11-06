@@ -17,7 +17,7 @@ Limits: a failed test is not a proof. It shows the two natural linear checks sto
 The proof is the DDH argument in the paper. Keys use OS randomness, so --seed only exists
 for CLI consistency with the other attack scripts.
 
-PROVENANCE: first draft AI-assisted (Claude); the group must review, run and adapt it.
+PROVENANCE: first draft AI-assisted (Claude); reviewed, run and tested by the group (tests/test_attacks.py).
 """
 
 from __future__ import annotations

@@ -18,7 +18,7 @@ first needs an ordinary coin):
 Run from the repo root:  python3 -m attacks.chain_scenario --trials 20 --ring-sizes 8 16
 Add --proof real for the sigma_ring proof (slow).
 
-PROVENANCE: first draft AI-assisted (Claude); the author must review, run and adapt it.
+PROVENANCE: first draft AI-assisted (Claude); reviewed, run and tested by the group (tests/test_attacks.py).
 """
 
 from __future__ import annotations

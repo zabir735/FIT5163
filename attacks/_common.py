@@ -1,7 +1,7 @@
 """Shared pieces for the attack simulations (Part C). Local toy chain only.
 
-PROVENANCE: first draft AI-assisted (Claude). The group must read, run and adapt it
-before submission, and disclose this in the README.
+PROVENANCE: first draft AI-assisted (Claude); reviewed, run and tested by the group
+(tests/test_attacks.py), and disclosed in the README.
 
 Who Eve is
 ----------

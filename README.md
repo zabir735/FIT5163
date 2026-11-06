@@ -39,6 +39,8 @@ eval/              timing/size benchmarks, Table 1 size model, comparison with t
 tests/             unit, property-based and tamper tests
 demo.py            scripted end-to-end scenario for the live demo
 docs/              team notes (PART_A_NOTES.md: interfaces, decisions, paper issues found)
+go/                Go extension: same scheme, plus BN254 and a Bulletproofs++ proof (see "Go extension" below;
+                   in the git repository it lives on the go-port branch)
 ```
 
 Any proof system plugs in through `prove(stmt, wit)` / `verify(stmt, proof)`, passed as
@@ -75,6 +77,27 @@ multi-self-transfer policies. Run `python demo.py` for the real proof or
 `python demo.py --stub` for a fast functional walkthrough; the stub exposes
 the witness and does not demonstrate privacy. `python demo.py --present`
 enables the interactive presentation controls.
+
+### Expected output
+
+What a correct run looks like (times vary by machine):
+
+| Command | Expected result |
+|---|---|
+| `python -m pytest` | `529 passed` (about 20 s) |
+| `python demo.py` | 13 steps; first line `proof system: Σ-protocol for Eq. 5 (linear size) + Bulletproofs range proof`; ends with `Done.` |
+| `python demo.py --stub` | the same 13 steps in a few seconds, with the stub proof (not private) |
+| `python -m attacks.miner_privacy --trials 200 --ring-sizes 16` | legacy row 100%; each protected row close to its own `chance` column; careless row 100% |
+| `./run_all.sh --quick` (Windows: `run_all.bat quick`) | every step finishes without error |
+
+In the demo, `[ok]` means a step worked and `[nope]` means something was
+correctly blocked. `verify -> None` is a broken rule (the paper's ⊥) and
+`verify -> False` a failed proof. The key lines are:
+
+- step 3, the coinbase spent alone: `[nope]`;
+- step 6: `[ok]`, no coinbase matches;
+- step 8, the careless self-transfer: accepted, and Eve wins;
+- step 12: the edited fee and the swapped tek give `verify -> False`, the original `verify -> True`.
 
 ## Evaluation and reproducibility (Part D)
 
@@ -273,6 +296,35 @@ Attack runs use the stub proof by default: Eve reads the public transaction;
 these attack tables are not proof-system performance or security measurements.
 Use `--proof real` where supported to exercise the Σ-protocol.
 
+## Go extension (`go/`)
+
+A port of the same scheme to Go, used in the report (§III-D, Table VII,
+Fig. 2) to separate the effect of the language, the curve and the proof
+system. It is byte-compatible with this Python code: a transaction made by
+either version verifies in the other. On top of the port it adds two things
+the paper uses:
+
+- the BN254 curve (`-tags bn256`, via gnark-crypto);
+- a Bulletproofs++-style log-size proof of Eq. 5 (`go/nizk/bpp.go`), our own
+  encoding, since the paper does not publish one.
+
+Prerequisites: Go 1.24 or newer (`go version`). The first build downloads
+dcrd secp256k1 and gnark-crypto (pinned in `go/go.sum`).
+
+```bash
+cd go
+go test ./...                                   # ok for curve, nizk, succinct, attacks
+go test -tags bn256 ./...                       # the same tests on BN254
+go run -tags bn256 ./cmd/demo -bpp              # the 13-step demo with BN254 + Bulletproofs++
+go run -tags bn256 ./cmd/bench -pippenger -proof bpp -reps 10   # quick paper-style benchmark
+go run ./cmd/crosscheck make fx.json && cd .. && python go/crosscheck.py check fx.json   # Go -> Python
+```
+
+The cross-check prints `original: True`, `fee edited: False`,
+`tek swapped: False` and `resubmitted: None` in both directions. Full
+benchmark output (100 runs per ring) is in `go/results/`;
+`python go/plot_go.py` redraws the comparison charts in `go/results/plots/`. `go/README.md` has the details.
+
 ## Provenance
 
 | Component | Source |
@@ -283,6 +335,7 @@ Use `--proof real` where supported to exercise the Σ-protocol.
 | Attack simulations, end-to-end chain scenario, multi-self-transfer scenario, shared toy world, attack tests (Part C) | own design; first drafts of the scripts AI-assisted (Claude), reviewed, run and tested by the author; follows the paper's §3 and §5 |
 | Transaction and proof serialization | Ryan (`47e3f7b`), with `succinct-v1` encoding used by the size benchmarks |
 | Security-gap tests | Ryan (`b26a86b`); their presence does not establish cryptographic security |
-| Analytical model, timing and size benchmarks, historical and final M3 Max results, plots, and Part D documentation | Felix (Part D); AI-assisted code and documentation drafts, reviewed against recorded CSVs by Felix. Paper formulas are attributed to SuccinCT. The group must review and rewrite the AI-assisted report draft before submission. |
+| Analytical model, timing and size benchmarks, historical and final M3 Max results, plots, and Part D documentation | Felix (Part D); AI-assisted code and documentation drafts, reviewed against recorded CSVs by Felix. Paper formulas are attributed to SuccinCT. |
+| Go extension (`go/`): port, BN254 backend, Bulletproofs++ encoding, benchmarks, plots | own code, AI-assisted (Claude), run and checked by Zabir; curve arithmetic from dcrd secp256k1 and gnark-crypto BN254; the BP++ encoding is our own design following the paper's §5 hint and the weighted norm argument of Eagen et al. 2024 (Bulletproofs++) |
 
 All experiments run on the local toy chain only.
